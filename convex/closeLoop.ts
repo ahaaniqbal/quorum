@@ -72,7 +72,7 @@ export const fireActions = mutation({
       {
         type: "calendar",
         system: "Google Calendar",
-        label: `Calendar: invite sent for Thursday 11:00am`,
+        label: `Calendar: Thursday 11:00am pilot slot held`,
         confidence: 72,
         risk: "medium",
         requirements: ["Composio API key", "Google Calendar connected account", "Primary contact email"],
@@ -206,16 +206,20 @@ export const complete = internalAction({
         timezone: "America/Los_Angeles",
       });
     } else if (type === "email") {
-      // SAFETY: in safe mode (default), never email a real prospect — outreach is
-      // prepared and held, not sent. Disable per-workspace for live customers.
-      const sent = safeMode() ? 0 : await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
+      // The send runs for real so the loop is exercised end-to-end. In safe mode
+      // (default) every send is rerouted to a safe inbox inside the helper, so a
+      // real prospect is never emailed during testing. Disable per-workspace for
+      // live customers (QUORUM_SAFE_MODE=off).
+      const sent = await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
       result = sent > 0 ? { ok: true, id: `sent:${sent}` } : { ok: false };
     }
 
     const status = result.ok ? "done" : "skipped";
-    const blockedSuffix =
-      type === "email" && safeMode() ? "held in safe mode" : "connect to enable";
-    const finalLabel = result.ok ? label : `${label} · ${blockedSuffix}`;
+    const finalLabel = result.ok
+      ? type === "email" && safeMode()
+        ? `${label} · routed to safe inbox`
+        : label
+      : `${label} · ${type === "email" ? "awaiting approval" : "connect to enable"}`;
     await ctx.runMutation(internal.closeLoop.markDone, {
       accountId,
       type,
@@ -281,9 +285,7 @@ function safeMode(): boolean {
 
 function missingRequirement(type: string): string {
   if (type === "email")
-    return safeMode()
-      ? "Safe mode is on: outreach was prepared and held, not sent to real recipients."
-      : "AgentMail is not connected or no approved drafts were available.";
+    return "No approved drafts yet — outreach is held for human approval before it sends.";
   if (type === "hubspot") return "HubSpot is not connected through Composio.";
   if (type === "calendar") return "Google Calendar is not connected through Composio.";
   if (type === "slack") return "Slack is not connected through Composio.";
@@ -444,18 +446,24 @@ async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<numb
   const data: any = await ctx.runQuery(internal.closeLoop.getCloseLoopData, { accountId });
   if (!data) return 0;
   const inbox = process.env.AGENTMAIL_INBOX ?? "quorum@agentmail.to";
+  const safe = safeMode();
+  // In safe mode, reroute every send here so a real prospect is never emailed
+  // during testing. Defaults to the agent inbox itself (inspectable + harmless).
+  const safeTo = process.env.QUORUM_SAFE_RECIPIENT || inbox;
   let sent = 0;
   for (const draft of data.drafts ?? []) {
     if (draft.status !== "approved") continue;
     const contact = data.contacts.find((c: any) => String(c._id) === String(draft.contactId));
     if (!contact?.email) continue;
+    const to = safe ? safeTo : contact.email;
+    const subject = safe ? `[SAFE MODE → ${contact.email}] ${draft.subject}` : draft.subject;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
       const res = await fetch(`https://api.agentmail.to/v0/inboxes/${inbox}/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ to: contact.email, subject: draft.subject, text: draft.body }),
+        body: JSON.stringify({ to, subject, text: draft.body }),
         signal: ctrl.signal,
       });
       if (res.ok) {

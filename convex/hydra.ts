@@ -2,9 +2,12 @@ import { internalAction, action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
-// HydraDB = the temporal account-brain graph. Best-effort and fully isolated:
-// if HydraDB is unavailable (or no key), context is assembled directly from
-// Convex so the demo never hard-depends on it.
+// HydraDB = the temporal account-brain graph (per-account tenant: graph +
+// vectorstore). Best-effort and fully isolated: if HydraDB is unavailable (or no
+// key), context is assembled directly from Convex so the product never hard-
+// depends on it. Convex is always the substrate; HydraDB is an overlay.
+
+const HYDRA_BASE = "https://api.hydradb.com";
 
 function assembleContext(data: any): string {
   const a = data.account;
@@ -21,49 +24,63 @@ function assembleContext(data: any): string {
   return lines.join("\n");
 }
 
-// Sync the account (enrichment, committee, transcript, interactions) to HydraDB.
-// Records an event only when a real sync succeeds.
+// HydraDB tenant ids are lowercase alphanumeric + hyphens. Namespace per account
+// domain so each account gets an isolated temporal graph.
+function tenantFor(domain: string): string {
+  const slug = (domain || "default")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `q-${slug || "default"}`.slice(0, 48);
+}
+
+async function hydraFetch(path: string, key: string, body: any): Promise<Response | null> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    return await fetch(`${HYDRA_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Provision (idempotently) the account's HydraDB tenant — graph + vectorstore.
+// Records an event only when HydraDB confirms the tenant is live.
 export const ingest = internalAction({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }) => {
-    const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+    // Unguarded internal load: ingest runs from the scheduler with no auth
+    // context, so the access-scoped public query would return null. (See
+    // committee.mapCommittee for the same autonomous-load pattern.)
+    const data: any = await ctx.runQuery(internal.brain.getBrainData, { accountId });
     if (!data) return;
-    const context = assembleContext(data);
 
     const key = process.env.HYDRADB_API_KEY;
     if (!key) return; // Convex remains the substrate; nothing to do.
 
-    try {
-      const res = await fetch("https://api.hydradb.com/v1/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          namespace: `account:${data.account.domain}`,
-          documents: [
-            { id: String(accountId), text: context, metadata: { type: "account" } },
-            ...data.transcript.map((l: any) => ({
-              id: String(l._id),
-              text: `${l.role}: ${l.text}`,
-              metadata: { type: "transcript", role: l.role },
-            })),
-          ],
-        }),
+    const tenant = tenantFor(data.account.domain);
+    const res = await hydraFetch("/tenants", key, { tenant_id: tenant });
+    if (!res) return;
+    // 2xx = created/accepted; 409 = already provisioned. Either way it's live.
+    if (res.ok || res.status === 409) {
+      await ctx.runMutation(internal.mutations.recordEvent, {
+        accountId,
+        type: "rethread",
+        label: "Account brain linked to HydraDB temporal graph",
       });
-      if (res.ok) {
-        await ctx.runMutation(internal.mutations.recordEvent, {
-          accountId,
-          type: "rethread",
-          label: "Account brain synced to HydraDB (temporal graph)",
-        });
-      }
-    } catch {
-      // best-effort: Convex context stands in
     }
   },
 });
 
 // Retrieve account context for building a (re)thread system prompt. Tries
-// HydraDB, falls back to Convex-assembled context.
+// HydraDB's graph query, falls back to Convex-assembled context.
 export const query = action({
   args: { accountId: v.id("accounts"), q: v.optional(v.string()) },
   handler: async (ctx, { accountId, q }): Promise<string> => {
@@ -74,19 +91,20 @@ export const query = action({
     const key = process.env.HYDRADB_API_KEY;
     if (!key) return fallback;
 
+    const tenant = tenantFor(data.account.domain);
+    const res = await hydraFetch("/query", key, {
+      tenant_id: tenant,
+      query: q ?? "summarize everything we know about this account",
+      top_k: 8,
+    });
+    if (!res || !res.ok) return fallback;
     try {
-      const res = await fetch("https://api.hydradb.com/v1/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          namespace: `account:${data.account.domain}`,
-          query: q ?? "summarize everything we know about this account",
-          topK: 8,
-        }),
-      });
-      if (!res.ok) return fallback;
       const j: any = await res.json();
-      const text = j?.results?.map((r: any) => r.text).join("\n") ?? "";
+      const chunks = j?.data?.chunks ?? j?.chunks ?? [];
+      const text = chunks
+        .map((c: any) => c.text ?? c.content ?? "")
+        .filter(Boolean)
+        .join("\n");
       return text || fallback;
     } catch {
       return fallback;
