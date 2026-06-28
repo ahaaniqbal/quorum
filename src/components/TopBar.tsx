@@ -15,6 +15,8 @@ export default function TopBar({
     e.headcount && `${e.headcount} employees`,
     e.industry,
     e.revenue,
+    e.founded && `Founded ${e.founded}`,
+    e.hq,
   ].filter(Boolean);
 
   return (

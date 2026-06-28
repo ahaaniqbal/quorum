@@ -12,6 +12,7 @@ import {
   type SeedCompany,
 } from "./lib/seed";
 import { fiberEmailToPerson, fiberCompany } from "./lib/fiber";
+import { orangeSliceCompany } from "./lib/orangeslice";
 
 // Best-effort brand extraction via Firecrawl: scrape the homepage and pull a
 // theme color + logo. Returns null on any failure. Never throws.
@@ -48,10 +49,12 @@ export const enrichFromEmail = action({
     const isKnown = Boolean(KNOWN_COMPANIES[domain]);
     const base = KNOWN_COMPANIES[domain] ?? fallbackCompany(domain);
 
-    // Real Fiber AI: reverse-lookup the person + enrich the company, in parallel.
-    const [person, fiber] = await Promise.all([
+    // Real enrichment, in parallel: Fiber reverse-lookup + company, and an
+    // Orange Slice LinkedIn snapshot (complementary social/firmographic signal).
+    const [person, fiber, os] = await Promise.all([
       fiberEmailToPerson(email),
       fiberCompany(domain),
+      orangeSliceCompany(domain),
     ]);
 
     // Layer real Fiber company data over the curated/derived base.
@@ -80,6 +83,15 @@ export const enrichFromEmail = action({
       if (brand?.logoUrl) logoUrl = brand.logoUrl;
     }
 
+    // Orange Slice domain→LinkedIn match can be noisy; only trust a clearly
+    // real snapshot (substantial follower count).
+    const osValid = Boolean(os && (os.followers ?? 0) >= 1000);
+
+    // Fold the Orange Slice LinkedIn snapshot into signals + firmographics.
+    const signals = [...(company.signals ?? [])];
+    if (osValid && os!.followers! > 1000)
+      signals.unshift(`${Math.round(os!.followers! / 1000)}K LinkedIn followers`);
+
     const source = fiber ? "fiber" : isKnown ? "curated" : "derived";
     const enrichment = {
       industry: company.industry,
@@ -87,7 +99,11 @@ export const enrichFromEmail = action({
       funding: company.funding,
       revenue: company.revenue,
       techStack: company.techStack,
-      signals: company.signals,
+      signals,
+      founded: osValid ? os!.foundedYear : undefined,
+      hq: osValid ? os!.hq : undefined,
+      linkedin: osValid ? os!.linkedinUrl : undefined,
+      sources: [fiber && "Fiber", osValid && "Orange Slice"].filter(Boolean),
       source,
     };
 
@@ -106,6 +122,20 @@ export const enrichFromEmail = action({
       label: `${fiber ? "Fiber enriched" : "Enriched"} ${company.companyName} — ${company.funding}, ${company.headcount} employees`,
       payload: enrichment,
     });
+
+    if (osValid) {
+      const bits = [
+        os!.followers ? `${os!.followers.toLocaleString()} LinkedIn followers` : null,
+        os!.foundedYear ? `founded ${os!.foundedYear}` : null,
+        os!.hq ? `HQ ${os!.hq}` : null,
+      ].filter(Boolean);
+      await ctx.runMutation(api.mutations.recordEvent, {
+        accountId: accountId as any,
+        type: "enriched",
+        label: `Orange Slice: LinkedIn snapshot — ${bits.join(" · ")}`,
+        payload: { source: "orangeslice" },
+      });
+    }
 
     // Primary contact — real identity via Fiber email-to-person when available.
     const primaryName = person?.name ?? nameFromEmail(email);
