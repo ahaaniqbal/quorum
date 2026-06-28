@@ -4,6 +4,8 @@ import { useAction } from "convex/react";
 import { motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
 
+const SAMPLES = ["eric@ramp.com", "dylan@figma.com", "patrick@stripe.com", "alex@linear.app"];
+
 export default function Landing() {
   const navigate = useNavigate();
   const enrich = useAction(api.actions.enrichFromEmail);
@@ -29,63 +31,92 @@ export default function Landing() {
   }
 
   return (
-    <div className="bg-grid relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
-      {/* Ambient glow */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[680px] -translate-x-1/2 rounded-full bg-accent/20 blur-[120px]" />
+    <div className="grid-lines relative flex min-h-screen flex-col overflow-hidden bg-bg">
+      {/* corner mono labels */}
+      <div className="pointer-events-none absolute left-5 top-4 mono-label">QUORUM // GTM</div>
+      <div className="pointer-events-none absolute right-5 top-4 mono-label">
+        AI ACCOUNT EXECUTIVE
+      </div>
+      <div className="pointer-events-none absolute bottom-4 left-5 mono-label">
+        [ multi-thread · remember · act ]
+      </div>
+      <div className="pointer-events-none absolute bottom-4 right-5 mono-label">v1.0</div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-xl"
-      >
-        <div className="mb-8 flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface">
-            <div className="h-3.5 w-3.5 rounded-full border-2 border-accent" />
+      {/* ambient glow */}
+      <div
+        className="pointer-events-none absolute -top-40 left-1/2 h-[460px] w-[680px] -translate-x-1/2 rounded-full blur-[130px]"
+        style={{ background: "color-mix(in srgb, var(--accent) 22%, transparent)" }}
+      />
+
+      <div className="relative z-10 flex flex-1 items-center justify-center px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.175, 0.885, 0.32, 1.1] }}
+          className="w-full max-w-xl"
+        >
+          <div className="mb-7 flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded border border-border">
+              <div
+                className="h-3 w-3 rounded-full border-[1.5px]"
+                style={{ borderColor: "var(--accent)" }}
+              />
+            </div>
+            <span className="text-[14px] font-semibold tracking-tight">Quorum</span>
           </div>
-          <span className="text-sm font-semibold tracking-tight">Quorum</span>
-        </div>
 
-        <h1 className="text-[42px] font-extrabold leading-[1.05] tracking-tight">
-          The AI account executive that works the{" "}
-          <span className="text-accent">whole room</span>.
-        </h1>
-        <p className="mt-4 max-w-md text-[15px] leading-relaxed text-secondary">
-          Drop your work email. Quorum enriches you live, qualifies you over a real
-          voice call, maps your buying committee, and never forgets a conversation.
-        </p>
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
+            <span className="mono-label normal-case tracking-normal text-secondary">
+              works the whole buying committee — live
+            </span>
+          </div>
 
-        <form onSubmit={onStart} className="mt-8 flex gap-2">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-            autoFocus
-            className="h-11 flex-1 rounded-md border border-border bg-surface px-4 text-[15px] text-text outline-none transition-colors placeholder:text-secondary/60 focus:border-accent"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary h-11 px-5"
-          >
-            {loading ? "Spinning up…" : "Start"}
-          </button>
-        </form>
-        {error && <p className="mt-2 text-xs text-risk">{error}</p>}
+          <h1 className="text-display-lg text-balance">
+            The AI account executive that works the{" "}
+            <span style={{ color: "var(--accent)" }}>whole room</span>.
+          </h1>
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-secondary">
+            Drop your work email. Quorum enriches you live, qualifies you over a real
+            voice call, maps your buying committee, and never forgets a conversation.
+          </p>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          {["ramp.com", "linear.app", "vercel.com", "notion.so"].map((d) => (
-            <button
-              key={d}
-              onClick={() => setEmail(`alex@${d}`)}
-              className="chip hover:border-accent/60 hover:text-text"
-            >
-              alex@{d}
-            </button>
-          ))}
-        </div>
-      </motion.div>
+          <form onSubmit={onStart} className="mt-8">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="mono-label pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2">
+                  ▸
+                </span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  autoFocus
+                  className="h-11 w-full rounded border border-border bg-surface pl-8 pr-4 font-mono text-[14px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
+                />
+              </div>
+              <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
+                {loading ? "Spinning up…" : "Start →"}
+              </button>
+            </div>
+            {error && <p className="mt-2 font-mono text-[11px] text-risk">{error}</p>}
+          </form>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="mono-label">try</span>
+            {SAMPLES.map((s) => (
+              <button
+                key={s}
+                onClick={() => setEmail(s)}
+                className="chip transition-colors duration-150 hover:border-border-strong hover:text-text"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

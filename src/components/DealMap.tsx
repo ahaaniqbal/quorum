@@ -8,6 +8,7 @@ import {
   initials,
 } from "../lib/format";
 import Panel from "./Panel";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 
 export default function DealMap({
   contacts,
@@ -115,13 +116,21 @@ function ContactCard({
         )}
       </div>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span
-          className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
-            ROLE_COLOR[contact.role] ?? ROLE_COLOR.unknown
-          }`}
-        >
-          {ROLE_LABEL[contact.role] ?? "Unknown"}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={`cursor-help rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+                ROLE_COLOR[contact.role] ?? ROLE_COLOR.unknown
+              }`}
+            >
+              {ROLE_LABEL[contact.role] ?? "Unknown"}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <span className="mono-label mb-1 block text-tertiary">why this person</span>
+            {contact.persona ?? "Stakeholder in the buying committee."}
+          </TooltipContent>
+        </Tooltip>
         <span className={`pill text-[10px] ${STATUS_PILL[contact.status]}`}>
           {STATUS_LABEL[contact.status]}
         </span>
