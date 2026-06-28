@@ -11,16 +11,21 @@ function fiberKey(): string | undefined {
 async function fiberPost(path: string, body: any): Promise<any | null> {
   const key = fiberKey();
   if (!key) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
     const res = await fetch(`${BASE}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": key },
       body: JSON.stringify({ apiKey: key, ...body }),
+      signal: ctrl.signal,
     });
     if (!res.ok) return null;
     return await res.json();
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -161,6 +166,7 @@ export type FiberCommitteeMember = {
   role: "champion" | "economic_buyer" | "technical" | "user";
   persona: string;
   linkedin?: string;
+  profilePic?: string;
 };
 
 function inferRole(title: string): FiberCommitteeMember["role"] {
@@ -217,6 +223,7 @@ export async function fiberCommittee(
         role,
         persona: personaFor(role, p.headline ?? ""),
         linkedin: p.url,
+        profilePic: p.profile_pic ?? undefined,
       };
     })
     .filter((m) => m.name && m.title);

@@ -8,6 +8,8 @@ import {
   initials,
 } from "../lib/format";
 import Panel from "./Panel";
+import { Avatar } from "./Avatar";
+import { copy } from "../copy";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 
 export default function DealMap({
@@ -26,8 +28,9 @@ export default function DealMap({
 
   return (
     <Panel
-      label="Deal Map"
+      label="Committee"
       index="03"
+      desc={copy.panels.dealMap.desc}
       right={
         <span className="mono-label tnum text-tertiary">
           {String(contacts.length).padStart(2, "0")} in committee
@@ -52,13 +55,15 @@ export default function DealMap({
         </AnimatePresence>
 
         {committee.length === 0 && (
-          <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
-            <p className="max-w-[210px] text-[13px] leading-relaxed text-secondary">
-              Map the rest of the buying committee from the account signal.
+          <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+            <p className="max-w-[220px] text-[13px] leading-relaxed text-secondary">
+              {mapping ? copy.loading.mapping : copy.empty.dealMap}
             </p>
-            <button onClick={onMapCommittee} disabled={mapping} className="btn-primary">
-              {mapping ? "Mapping…" : "Map committee"}
-            </button>
+            {!mapping && (
+              <button onClick={onMapCommittee} className="btn-secondary h-8 text-[12px]">
+                Map committee now
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -81,17 +86,17 @@ function ContactCard({
 
   return (
     <div
-      className={`group rounded-md border bg-surface p-3 transition-all duration-150 ease-vercel hover:border-border-strong hover:bg-surface2 ${
-        highlight ? "border-[color:var(--accent)]/35" : "border-border"
+      className={`group border bg-surface p-3 transition-all duration-150 ease-vercel hover:border-border-strong hover:bg-surface2 ${
+        highlight ? "border-[color:var(--accent)]/40" : "border-border"
       }`}
     >
       <div className="flex items-center gap-2.5">
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border font-mono text-[11px] font-medium"
-          style={{ color: "var(--accent)" }}
-        >
-          {initials(contact.name)}
-        </div>
+        <Avatar
+          photoUrl={contact.enrichment?.profilePic}
+          email={contact.email}
+          name={contact.name}
+          size={36}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-[13px] font-medium text-text">{contact.name}</p>
@@ -153,7 +158,7 @@ function ContactCard({
             transition={{ duration: 0.22, ease: [0.175, 0.885, 0.32, 1.1] }}
             className="mt-2.5 overflow-hidden"
           >
-            <div className="rounded-md border border-border bg-bg p-3">
+            <div className="border border-border bg-bg p-3">
               <p className="mono-label mb-1 normal-case tracking-normal text-tertiary">
                 {draft.status === "sent" ? "sent ✓" : "draft"}
               </p>

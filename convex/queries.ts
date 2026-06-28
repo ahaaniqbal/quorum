@@ -111,6 +111,19 @@ export const getLiveConversation = query({
   },
 });
 
+// The public demo "hero" account (Ramp) used by "Try a sample company".
+export const getSampleAccountId = query({
+  args: {},
+  handler: async (ctx) => {
+    const ramps = await ctx.db
+      .query("accounts")
+      .withIndex("by_domain", (q) => q.eq("domain", "ramp.com"))
+      .collect();
+    const demo = ramps.find((a) => a.userId === undefined);
+    return demo?._id ?? null;
+  },
+});
+
 export const getAccountByDomain = query({
   args: { domain: v.string() },
   handler: async (ctx, { domain }) => {
@@ -129,16 +142,15 @@ export const listAccounts = query({
   },
 });
 
-// Pipeline board: the signed-in user's accounts with derived stats.
+// Pipeline board: the signed-in user's accounts + public demo accounts.
 export const listPipeline = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return [];
-    const accounts = await ctx.db
-      .query("accounts")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+    const all = await ctx.db.query("accounts").collect();
+    const accounts = all.filter(
+      (a) => a.userId === undefined || a.userId === userId
+    );
     const rows = await Promise.all(
       accounts.map(async (account) => {
         const contacts = await ctx.db
@@ -182,6 +194,7 @@ export const listPipeline = query({
 
         return {
           _id: account._id,
+          isDemo: account.userId === undefined,
           companyName: account.companyName,
           domain: account.domain,
           logoUrl: account.logoUrl,

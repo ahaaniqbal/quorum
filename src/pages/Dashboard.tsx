@@ -49,12 +49,11 @@ export default function Dashboard() {
   const actioned =
     account?.status === "actioned" || actions.some((a: any) => a.status === "done");
 
-  // The single next step in the linear pipeline (null = waiting or done).
+  // The autopilot spine — runs with zero voice involved. The live call is a
+  // separate, optional action the judge can trigger from the Call panel.
   let nextAction: Action | null = null;
   if (account) {
-    if (!convo) nextAction = "call";
-    else if (convo.status === "live") nextAction = null;
-    else if (committeeCount === 0) nextAction = "committee";
+    if (committeeCount === 0) nextAction = "committee";
     else if (drafts.length === 0) nextAction = "outreach";
     else if (!actioned) nextAction = "actions";
   }
@@ -80,8 +79,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!autopilot || !nextAction) return;
     if (runningRef.current === nextAction) return;
-    const delay = nextAction === "call" ? 900 : 1600;
-    const t = setTimeout(() => fire(nextAction), delay);
+    const t = setTimeout(() => fire(nextAction), 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autopilot, nextAction, account?._id, primary?._id]);
@@ -99,15 +97,13 @@ export default function Dashboard() {
       : "ended";
 
   const nextLabel =
-    nextAction === "call"
-      ? "Qualify"
-      : nextAction === "committee"
-        ? "Map committee"
-        : nextAction === "outreach"
-          ? "Draft outreach"
-          : nextAction === "actions"
-            ? "Close loop"
-            : null;
+    nextAction === "committee"
+      ? "Map committee"
+      : nextAction === "outreach"
+        ? "Draft outreach"
+        : nextAction === "actions"
+          ? "Close loop"
+          : null;
 
   const onRethread = async () => {
     setRethreading(true);

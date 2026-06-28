@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { EVENT_DOT, timeAgo } from "../lib/format";
+import { copy } from "../copy";
 import Panel from "./Panel";
 
 export default function ActivityFeed({ events }: { events: any[] }) {
@@ -7,6 +8,7 @@ export default function ActivityFeed({ events }: { events: any[] }) {
     <Panel
       label="Activity"
       index="01"
+      desc={copy.panels.activity.desc}
       right={
         <span className="mono-label tnum text-tertiary">
           {String(events.length).padStart(2, "0")} events
@@ -42,7 +44,7 @@ export default function ActivityFeed({ events }: { events: any[] }) {
         </AnimatePresence>
         {events.length === 0 && (
           <p className="px-3 py-8 text-center text-[13px] text-tertiary">
-            Waiting for the account brain to wake up…
+            {copy.empty.activity}
           </p>
         )}
       </div>

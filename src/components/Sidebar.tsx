@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { STAGE_INDEX, STAGES } from "../lib/stages";
+import { Avatar } from "./Avatar";
 
 const STAGE_DOT = [
   "bg-tertiary",
@@ -17,6 +18,7 @@ export default function Sidebar() {
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
   const me = useQuery(api.profiles.getMyProfile);
   const reset = useMutation(api.admin.resetDemo);
+  const isGuest = (me?.user as any)?.isAnonymous;
 
   return (
     <aside className="flex h-screen w-[228px] shrink-0 flex-col border-r border-border bg-[#0c0c0c]">
@@ -84,24 +86,45 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-border p-3">
-        {me?.profile && (
+        {isGuest ? (
           <button
-            onClick={() => navigate("/settings")}
-            className="mb-2.5 flex w-full items-center gap-2.5 rounded px-1.5 py-1.5 text-left transition-colors hover:bg-surface"
+            onClick={() => navigate("/signin")}
+            className="mb-2.5 flex w-full items-center gap-2.5 border border-border px-2 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface"
           >
-            <div
+            <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
               style={{ background: "var(--accent)" }}
             >
-              {me.profile.name?.[0]?.toUpperCase() ?? "?"}
-            </div>
+              G
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-medium text-text">{me.profile.name}</p>
-              <p className="mono-label truncate normal-case tracking-normal text-tertiary">
-                {me.profile.companyName}
+              <p className="truncate text-[12px] font-medium text-text">Guest session</p>
+              <p className="mono-label truncate normal-case tracking-normal text-accent-soft">
+                Sign in to save →
               </p>
             </div>
           </button>
+        ) : (
+          me?.profile && (
+            <button
+              onClick={() => navigate("/settings")}
+              className="mb-2.5 flex w-full items-center gap-2.5 px-1.5 py-1.5 text-left transition-colors hover:bg-surface"
+            >
+              <Avatar
+                photoUrl={null}
+                email={me.user?.email}
+                name={me.profile.name}
+                size={28}
+                className="rounded-full"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12px] font-medium text-text">{me.profile.name}</p>
+                <p className="mono-label truncate normal-case tracking-normal text-tertiary">
+                  {me.profile.companyName}
+                </p>
+              </div>
+            </button>
+          )
         )}
         <div className="mb-2 flex items-center gap-1.5 px-1">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
@@ -159,14 +182,14 @@ function Logo({ url, name }: { url?: string; name?: string }) {
     return (
       <img
         src={url}
-        className="h-6 w-6 shrink-0 rounded border border-border bg-white object-contain p-0.5"
+        className="h-6 w-6 shrink-0 border border-border bg-white object-contain p-0.5"
         alt=""
         onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
       />
     );
   }
   return (
-    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border font-mono text-[10px] text-secondary">
+    <div className="flex h-6 w-6 shrink-0 items-center justify-center border border-border font-mono text-[10px] text-secondary">
       {name?.[0] ?? "?"}
     </div>
   );

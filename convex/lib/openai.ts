@@ -8,6 +8,8 @@ export async function openaiChat(
 ): Promise<string | null> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -19,12 +21,15 @@ export async function openaiChat(
         ...(opts.json ? { response_format: { type: "json_object" } } : {}),
         messages,
       }),
+      signal: ctrl.signal,
     });
     if (!res.ok) return null;
     const j: any = await res.json();
     return j?.choices?.[0]?.message?.content ?? null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

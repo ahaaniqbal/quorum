@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
-export default function SignIn() {
+export default function SignIn({ upgrade }: { upgrade?: boolean }) {
   const { signIn } = useAuthActions();
+  const navigate = useNavigate();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signUp");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,10 +34,14 @@ export default function SignIn() {
     <div className="grid-lines relative flex min-h-screen items-center justify-center overflow-hidden bg-bg px-6">
       <div className="pointer-events-none absolute left-5 top-4 mono-label">QUORUM // GTM</div>
       <div className="pointer-events-none absolute right-5 top-4 mono-label">AI ACCOUNT EXECUTIVE</div>
-      <div
-        className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full blur-[130px]"
-        style={{ background: "color-mix(in srgb, var(--accent) 20%, transparent)" }}
-      />
+      {upgrade && (
+        <button
+          onClick={() => navigate("/")}
+          className="mono-label absolute left-5 bottom-5 z-10 normal-case tracking-normal text-tertiary hover:text-secondary"
+        >
+          ← Back to app
+        </button>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 12 }}

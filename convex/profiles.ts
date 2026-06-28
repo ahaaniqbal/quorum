@@ -16,6 +16,35 @@ export const getMyProfile = query({
   },
 });
 
+// For anonymous (guest) users, create a sensible default profile so they skip
+// onboarding and the AI rep has a coherent product to pitch. No-op otherwise.
+export const ensureGuestProfile = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const user = await ctx.db.get(userId);
+    const existing = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (existing) return existing._id;
+    // Only auto-provision for anonymous guests; real signups go through onboarding.
+    if (!(user as any)?.isAnonymous) return null;
+    return await ctx.db.insert("profiles", {
+      userId,
+      name: "Alex Rivera",
+      companyName: "Quorum",
+      product:
+        "an AI account executive that works the entire buying committee and never forgets context",
+      valueProp:
+        "Speed-to-lead in seconds, automatic multi-threading, and real actions across your stack",
+      icp: "B2B SaaS revenue teams running an outbound + inbound motion",
+      onboarded: true,
+    });
+  },
+});
+
 export const saveProfile = mutation({
   args: {
     name: v.string(),

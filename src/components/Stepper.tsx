@@ -18,15 +18,14 @@ export default function Stepper({
   onToggleAutopilot: () => void;
   onRunNext: () => void;
 }) {
-  // The "active" stage is the one currently being worked (reached + 1), or the
-  // call stage while the call is live.
-  const activeIdx = callLive ? 1 : done ? -1 : reached + 1;
+  // The "active" stage is the one currently being worked (reached + 1).
+  const activeIdx = done ? -1 : reached + 1;
 
   return (
     <div className="flex items-center justify-between border-b border-border px-5 py-2.5">
       <div className="flex items-center gap-1">
         {STAGES.map((s, i) => {
-          const isDone = i <= reached && !(callLive && i === 1);
+          const isDone = i <= reached;
           const isActive = i === activeIdx;
           return (
             <div key={s.key} className="flex items-center">

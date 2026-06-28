@@ -29,6 +29,9 @@ export default function ActionsRail({
       <div className="flex items-center gap-2">
         <span className="mono-label text-tertiary">04</span>
         <span className="mono-label text-secondary">Actions</span>
+        <span className="hidden text-[11px] text-tertiary xl:inline">
+          Real work, done across your stack.
+        </span>
       </div>
 
       <div className="flex flex-1 flex-wrap gap-1.5">

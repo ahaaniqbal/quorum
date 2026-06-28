@@ -150,7 +150,9 @@ export const enrichFromEmail = action({
       email,
       role: "champion",
       persona: "Pragmatic, ROI-driven, wants speed-to-value.",
-      enrichment: person ? { linkedin: person.linkedin, headline: person.headline } : undefined,
+      enrichment: person
+        ? { linkedin: person.linkedin, headline: person.headline, profilePic: person.profilePic }
+        : undefined,
       isPrimary: true,
     });
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { copy } from "../copy";
 import Panel from "./Panel";
 
 const PILLARS = [
@@ -67,7 +68,7 @@ export default function CallPanel({
     );
 
   return (
-    <Panel label="Live Call" index="02" right={statusPill}>
+    <Panel label="Live Call" index="02" desc={copy.panels.call.desc} right={statusPill}>
       {/* Scorecard */}
       <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3">
         {PILLARS.map((p) => {
@@ -105,15 +106,23 @@ export default function CallPanel({
                 style={{ background: "var(--accent)" }}
               />
             </div>
-            <p className="max-w-[230px] text-[13px] leading-relaxed text-secondary">
-              {callState === "connecting"
-                ? "Quorum is dialing the prospect…"
-                : "The voice rep will greet the prospect by name and qualify live."}
-            </p>
-            {onStartCall && callState === "idle" && (
-              <button onClick={onStartCall} className="btn-secondary h-8 text-[12px]">
-                Start call manually
-              </button>
+            {callState === "connecting" ? (
+              <p className="text-[13px] text-secondary">Connecting the AI rep…</p>
+            ) : (
+              <>
+                <p className="max-w-[240px] text-[13px] leading-relaxed text-secondary">
+                  {copy.empty.call}
+                </p>
+                {onStartCall && (
+                  <button onClick={onStartCall} className="btn-primary">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />{" "}
+                    {copy.call.optionalCta}
+                  </button>
+                )}
+                <p className="mono-label normal-case tracking-normal">
+                  {copy.call.optionalHint}
+                </p>
+              </>
             )}
           </div>
         )}

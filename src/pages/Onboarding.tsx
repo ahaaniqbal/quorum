@@ -37,10 +37,6 @@ export default function Onboarding({ defaultName }: { defaultName?: string }) {
       <div className="pointer-events-none absolute right-5 top-4 mono-label tnum">
         STEP {step + 1} / 2
       </div>
-      <div
-        className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full blur-[130px]"
-        style={{ background: "color-mix(in srgb, var(--accent) 18%, transparent)" }}
-      />
 
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-5 flex items-center gap-1.5">

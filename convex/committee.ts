@@ -43,6 +43,7 @@ export const mapCommittee = action({
         role: m.role,
         persona: m.persona,
         linkedin: m.linkedin,
+        profilePic: m.profilePic,
       });
       t += 750;
     }
@@ -71,6 +72,7 @@ export const addMember = internalMutation({
     role: v.string(),
     persona: v.string(),
     linkedin: v.optional(v.string()),
+    profilePic: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     // Avoid duplicates if mapping is re-run.
@@ -90,7 +92,10 @@ export const addMember = internalMutation({
       persona: a.persona,
       status: "not_contacted",
       isPrimary: false,
-      enrichment: a.linkedin ? { linkedin: a.linkedin } : undefined,
+      enrichment:
+        a.linkedin || a.profilePic
+          ? { linkedin: a.linkedin, profilePic: a.profilePic }
+          : undefined,
     });
 
     await ctx.db.insert("events", {

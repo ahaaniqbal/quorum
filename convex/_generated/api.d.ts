@@ -24,6 +24,7 @@ import type * as outreach from "../outreach.js";
 import type * as profiles from "../profiles.js";
 import type * as queries from "../queries.js";
 import type * as rethread from "../rethread.js";
+import type * as seedDemo from "../seedDemo.js";
 import type * as voice from "../voice.js";
 
 import type {
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   profiles: typeof profiles;
   queries: typeof queries;
   rethread: typeof rethread;
+  seedDemo: typeof seedDemo;
   voice: typeof voice;
 }>;
 

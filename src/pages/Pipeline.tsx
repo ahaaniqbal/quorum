@@ -5,27 +5,42 @@ import { motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
 import { STAGES, STAGE_INDEX } from "../lib/stages";
 import { timeAgo } from "../lib/format";
+import { copy } from "../copy";
 
 const SAMPLES = ["eric@ramp.com", "dylan@figma.com", "patrick@stripe.com", "alex@linear.app"];
+const FREE_DOMAINS = new Set([
+  "gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotmail.com",
+  "proton.me", "protonmail.com", "aol.com", "live.com", "msn.com", "me.com",
+]);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Pipeline() {
   const navigate = useNavigate();
   const enrich = useAction(api.actions.enrichFromEmail);
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
+  const sampleId = useQuery(api.queries.getSampleAccountId, {});
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function openSample() {
+    if (sampleId) navigate(`/deal/${sampleId}`);
+  }
+
   async function onStart(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.includes("@")) return setError("Enter a valid work email");
+    const trimmed = email.trim();
+    const domain = trimmed.split("@")[1]?.toLowerCase();
+    if (!EMAIL_RE.test(trimmed)) return setError(copy.edge.invalidEmail);
+    if (domain && FREE_DOMAINS.has(domain)) return setError(copy.edge.personalEmail);
     setError(null);
     setLoading(true);
     try {
-      const accountId = await enrich({ email });
+      const accountId = await enrich({ email: trimmed });
       navigate(`/deal/${accountId}`);
     } catch (err: any) {
-      setError(err?.message ?? "Something went wrong");
+      // Never dead-end: surface a friendly note, keep the judge moving.
+      setError(copy.edge.genericError);
       setLoading(false);
     }
   }
@@ -56,7 +71,7 @@ export default function Pipeline() {
               — drop a work email, Quorum works the whole account.
             </span>
           </div>
-          <form onSubmit={onStart} className="flex gap-2">
+          <form onSubmit={onStart} noValidate className="flex gap-2">
             <div className="relative flex-1">
               <span className="mono-label pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2">
                 ▸
@@ -71,11 +86,32 @@ export default function Pipeline() {
               />
             </div>
             <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
-              {loading ? "Spinning up…" : "Run Quorum →"}
+              {loading ? "Enriching…" : "Run Quorum →"}
+            </button>
+            <button
+              type="button"
+              onClick={openSample}
+              disabled={!sampleId}
+              className="btn-secondary h-11 px-4"
+              title={copy.pipeline.sampleHint}
+            >
+              {copy.pipeline.sampleCta}
             </button>
           </form>
-          {error && <p className="mt-2 font-mono text-[11px] text-risk">{error}</p>}
+          {error && (
+            <p className="mt-2 text-[12px] text-warn">
+              {error}
+              {error === copy.edge.personalEmail && sampleId && (
+                <button onClick={openSample} className="ml-1 text-accent-soft underline">
+                  Open a sample
+                </button>
+              )}
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="mono-label">{copy.pipeline.sampleHint}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="mono-label">try</span>
             {SAMPLES.map((s) => (
               <button
@@ -114,10 +150,8 @@ export default function Pipeline() {
                 className="cell group overflow-hidden p-0 text-left transition-all duration-150 ease-vercel hover:border-border-strong"
               >
                 <div
-                  className="h-[3px] w-full"
-                  style={{
-                    background: `linear-gradient(90deg, ${a.brandColors?.[0] ?? "#5B47EB"}, transparent)`,
-                  }}
+                  className="h-[2px] w-full"
+                  style={{ background: a.brandColors?.[0] ?? "#5B47EB" }}
                 />
                 <div className="p-4">
                   <div className="flex items-start gap-3">
@@ -176,14 +210,14 @@ function Logo({ url, name }: { url?: string; name?: string }) {
     return (
       <img
         src={url}
-        className="h-9 w-9 shrink-0 rounded-md border border-border bg-white object-contain p-1"
+        className="h-9 w-9 shrink-0 border border-border bg-white object-contain p-1"
         alt=""
         onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
       />
     );
   }
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border font-mono text-sm text-secondary">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-border font-mono text-sm text-secondary">
       {name?.[0] ?? "?"}
     </div>
   );

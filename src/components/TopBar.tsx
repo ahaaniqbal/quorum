@@ -93,14 +93,14 @@ function Logo({ url, name }: { url?: string; name?: string }) {
       <img
         src={url}
         onError={() => setOk(false)}
-        className="h-10 w-10 rounded-md border border-border bg-white object-contain p-1"
+        className="h-10 w-10 border border-border bg-white object-contain p-1"
         alt={name}
       />
     );
   }
   return (
     <div
-      className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface font-mono text-sm font-semibold"
+      className="flex h-10 w-10 items-center justify-center border border-border bg-surface font-mono text-sm font-semibold"
       style={{ color: "var(--accent)" }}
     >
       {name?.[0] ?? "?"}

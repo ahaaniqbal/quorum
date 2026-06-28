@@ -9,6 +9,7 @@ export type CommitteeMember = {
   role: "champion" | "economic_buyer" | "technical" | "user";
   persona: string;
   linkedin?: string;
+  profilePic?: string;
 };
 
 export type SeedCompany = {

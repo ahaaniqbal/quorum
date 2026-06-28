@@ -13,6 +13,8 @@ function osKey(): string | undefined {
 async function osCall(name: string, args: any): Promise<any | null> {
   const key = osKey();
   if (!key) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
     const res = await fetch(OS_URL, {
       method: "POST",
@@ -27,6 +29,7 @@ async function osCall(name: string, args: any): Promise<any | null> {
         method: "tools/call",
         params: { name, arguments: args },
       }),
+      signal: ctrl.signal,
     });
     if (!res.ok) return null;
     const text = await res.text();
@@ -49,6 +52,8 @@ async function osCall(name: string, args: any): Promise<any | null> {
     return payload?.result ?? null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
