@@ -11,3 +11,5 @@ convex/_generated
 
 # Local secrets — never committed
 secrets.env
+tsconfig.tsbuildinfo
+*.tsbuildinfo
