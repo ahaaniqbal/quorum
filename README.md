@@ -2,6 +2,10 @@
 
 **The autonomous AI account executive that works the entire buying committee, remembers every conversation, and acts across your stack.**
 
+🔗 **Live:** https://quorum-runaegis-projects.vercel.app · **Repo:** https://github.com/ahaaniqbal/quorum
+
+Built for the AI Growth Hackathon (by Orange Slice). Sponsors used: **Convex** (backend, realtime, host), **Fiber AI** (enrichment), **Orange Slice** (LinkedIn enrichment), **OpenAI** (reasoning).
+
 Every GTM tool today talks to one lead and forgets the conversation by morning. Quorum talks to the whole room and never forgets.
 
 ## The flow
@@ -25,14 +29,14 @@ The entire dashboard is **reactive Convex state with no polling**. Every externa
 
 ## Stack
 
-- **Convex** — backend, database, realtime reactive queries, scheduler, hosting
-- **React + Vite + TypeScript + Tailwind + Framer Motion** — frontend (Linear-dark aesthetic)
-- **OpenAI** — qualification, persona outreach (key-optional)
-- **getleads / Fiber** — company + decision-maker enrichment (committee uses real, verified people)
-- **Vapi + Deepgram** — live in-browser voice rep (key-optional; server-streamed simulation as fallback)
-- **Composio** — real Slack / HubSpot / Calendar actions (key-optional)
+- **Convex** — backend, database, realtime reactive queries, scheduler. The entire dashboard is reactive Convex state with no polling; the live call, committee map, and action loop are streamed via the Convex scheduler.
+- **Fiber AI** — real enrichment: `email-to-person` reverse lookup for the primary contact, `kitchen-sink/company` for firmographics (funding, headcount, revenue, tech, logo), and `people-search` for the buying committee.
+- **Orange Slice** — LinkedIn enrichment via its HTTP-MCP (followers, founded year, HQ), folded into the account brain alongside Fiber.
+- **OpenAI** — persona-tuned committee outreach and call qualification.
+- **React + Vite + TypeScript + Tailwind + Framer Motion** — frontend (Linear-dark aesthetic), hosted on Vercel.
+- Optional: Composio (real Slack), Firecrawl (brand theming), HydraDB (account-brain graph) — wired and key-gated.
 
-Every integration is **key-optional**: a real path when the env key is present, and a high-fidelity simulated fallback otherwise — so the demo runs end-to-end with zero keys and lights up further as keys are added.
+Every external integration is **best-effort with a high-fidelity fallback**: a real path when the env key is present, and a curated/simulated path otherwise — so the demo always runs end-to-end and never breaks live. The voice rep is a server-streamed simulated call (reliable on stage); a real Vapi web-call path is wired for when a key is added.
 
 ## Run it
 
