@@ -287,12 +287,42 @@ async function execComposio(
     });
     const j: any = await res.json().catch(() => ({}));
     if (res.ok && j?.successful !== false && !j?.error) {
-      return { ok: true, id: String(j?.data?.ts ?? j?.data?.id ?? "ok") };
+      return { ok: true, id: extractExternalId(j?.data) };
     }
     return { ok: false };
   } catch {
     return { ok: false };
   }
+}
+
+// Pull a real external receipt id out of a Composio v3 tool result. Different
+// toolkits nest the created-object id differently (Slack returns `ts` at the
+// top of `data`; HubSpot/Calendar wrap the provider payload under
+// `response_data`/`response`/`result`), so dig through the common shapes before
+// falling back to "ok". Recording the true id is what makes a "done" action a
+// verifiable receipt rather than a placeholder.
+function extractExternalId(data: any): string {
+  if (data == null) return "ok";
+  const seen = new Set<any>();
+  const scan = (node: any, depth: number): string | undefined => {
+    if (node == null || depth > 4 || typeof node !== "object" || seen.has(node)) return undefined;
+    seen.add(node);
+    // Slack message timestamp is the canonical receipt for a posted message.
+    if (node.ts != null && (typeof node.ts === "string" || typeof node.ts === "number"))
+      return String(node.ts);
+    // Most providers (HubSpot, Google Calendar) return the created object id.
+    for (const key of ["id", "messageId", "eventId", "hs_object_id"]) {
+      const val = node[key];
+      if (val != null && (typeof val === "string" || typeof val === "number")) return String(val);
+    }
+    // Otherwise descend into nested provider payloads.
+    for (const key of ["response_data", "response", "result", "data", "successResponseData"]) {
+      const nested = scan(node[key], depth + 1);
+      if (nested) return nested;
+    }
+    return undefined;
+  };
+  return scan(data, 0) ?? "ok";
 }
 
 export const markDone = internalMutation({
