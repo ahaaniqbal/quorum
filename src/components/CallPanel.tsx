@@ -16,7 +16,7 @@ export default function CallPanel({
 }: {
   conversation: any;
   transcript: any[];
-  onStartCall: () => void;
+  onStartCall?: () => void;
   callState: "idle" | "connecting" | "live" | "ended";
 }) {
   const qual = conversation?.qualification ?? null;
@@ -78,17 +78,24 @@ export default function CallPanel({
 
       {/* Transcript */}
       <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
-        {transcript.length === 0 && callState === "idle" && (
+        {transcript.length === 0 && callState !== "live" && (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
             <div className="dot-grid flex h-14 w-14 items-center justify-center rounded-full border border-border">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--accent)" }} />
+              <span
+                className="h-2.5 w-2.5 animate-pulse rounded-full"
+                style={{ background: "var(--accent)" }}
+              />
             </div>
             <p className="max-w-[230px] text-[13px] leading-relaxed text-secondary">
-              Start the voice rep. It greets the prospect by name and qualifies live.
+              {callState === "connecting"
+                ? "Quorum is dialing the prospect…"
+                : "The voice rep will greet the prospect by name and qualify live."}
             </p>
-            <button onClick={onStartCall} className="btn-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Start voice call
-            </button>
+            {onStartCall && callState === "idle" && (
+              <button onClick={onStartCall} className="btn-secondary h-8 text-[12px]">
+                Start call manually
+              </button>
+            )}
           </div>
         )}
         <AnimatePresence initial={false}>

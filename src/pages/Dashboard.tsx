@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { startRealVapiCall, hasVapiKey } from "../lib/vapi";
 import TopBar from "../components/TopBar";
+import Stepper from "../components/Stepper";
 import ActivityFeed from "../components/ActivityFeed";
 import CallPanel from "../components/CallPanel";
 import DealMap from "../components/DealMap";
 import ActionsRail from "../components/ActionsRail";
+import { deriveProgress } from "../lib/stages";
+
+type Action = "call" | "committee" | "outreach" | "actions";
 
 export default function Dashboard() {
   const { accountId } = useParams<{ accountId: string }>();
@@ -18,131 +21,140 @@ export default function Dashboard() {
   );
 
   const startSimulatedCall = useMutation(api.voice.startSimulatedCall);
-  const createVoiceConversation = useMutation(api.voice.createVoiceConversation);
-  const appendRealLine = useMutation(api.voice.appendRealLine);
   const mapCommittee = useAction(api.committee.mapCommittee);
   const generateOutreach = useAction(api.outreach.generateOutreach);
   const fireActions = useMutation(api.closeLoop.fireActions);
   const startRethread = useMutation(api.rethread.startRethread);
 
-  const [callState, setCallState] = useState<"idle" | "connecting" | "live" | "ended">(
-    "idle"
-  );
-  const [mapping, setMapping] = useState(false);
-  const [firing, setFiring] = useState(false);
+  const [autopilot, setAutopilot] = useState(true);
   const [rethreading, setRethreading] = useState(false);
+  const runningRef = useRef<string | null>(null);
 
-  // Derive call state from the live conversation so it survives reloads.
-  const convoStatus = data?.latestConversation?.status;
+  // Reset the autopilot guard when navigating between deals.
   useEffect(() => {
-    if (convoStatus === "live") setCallState("live");
-    else if (convoStatus === "ended") setCallState("ended");
-  }, [convoStatus]);
+    runningRef.current = null;
+    setAutopilot(true);
+  }, [accountId]);
+
+  const account = data?.account;
+  const contacts = data?.contacts ?? [];
+  const primary = contacts.find((c: any) => c.isPrimary) ?? contacts[0];
+  const committeeCount = contacts.filter((c: any) => !c.isPrimary).length;
+  const convo = data?.latestConversation;
+  const drafts = data?.drafts ?? [];
+  const actions = data?.actions ?? [];
+  const actioned =
+    account?.status === "actioned" || actions.some((a: any) => a.status === "done");
+
+  // The single next step in the linear pipeline (null = waiting or done).
+  let nextAction: Action | null = null;
+  if (account) {
+    if (!convo) nextAction = "call";
+    else if (convo.status === "live") nextAction = null;
+    else if (committeeCount === 0) nextAction = "committee";
+    else if (drafts.length === 0) nextAction = "outreach";
+    else if (!actioned) nextAction = "actions";
+  }
+
+  const { reached, callLive, done } = deriveProgress(data ?? null);
+
+  async function fire(action: Action | null) {
+    if (!action || !account || runningRef.current === action) return;
+    runningRef.current = action;
+    try {
+      if (action === "call" && primary)
+        await startSimulatedCall({ contactId: primary._id });
+      else if (action === "committee") await mapCommittee({ accountId: account._id });
+      else if (action === "outreach") await generateOutreach({ accountId: account._id });
+      else if (action === "actions") await fireActions({ accountId: account._id });
+    } catch (e) {
+      console.error("[Quorum] autopilot step failed", e);
+      runningRef.current = null;
+    }
+  }
+
+  // Autopilot: auto-advance the pipeline when enabled.
+  useEffect(() => {
+    if (!autopilot || !nextAction) return;
+    if (runningRef.current === nextAction) return;
+    const delay = nextAction === "call" ? 900 : 1600;
+    const t = setTimeout(() => fire(nextAction), delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autopilot, nextAction, account?._id, primary?._id]);
 
   if (!accountId) return <Centered>Missing account.</Centered>;
   if (data === undefined) return <Centered>Loading account brain…</Centered>;
   if (data === null) return <Centered>Account not found.</Centered>;
 
-  const { account, contacts, latestConversation, transcript, events, actions, drafts } =
-    data;
-  const primary = contacts.find((c: any) => c.isPrimary) ?? contacts[0];
+  const callState: "idle" | "connecting" | "live" | "ended" = !convo
+    ? runningRef.current === "call"
+      ? "connecting"
+      : "idle"
+    : convo.status === "live"
+      ? "live"
+      : "ended";
 
-  const onStartCall = async () => {
-    if (!primary) return;
-    setCallState("connecting");
-    try {
-      if (hasVapiKey()) {
-        // Real Vapi web call: stream live transcript into Convex.
-        const conversationId = await createVoiceConversation({ contactId: primary._id });
-        await startRealVapiCall({
-          contactId: primary._id,
-          conversationId,
-          onTranscript: (role, text) =>
-            appendRealLine({ conversationId, role, text }),
-          onEnd: () => setCallState("ended"),
-        });
-        setCallState("live");
-      } else {
-        // Simulated server-streamed call (reliable demo path).
-        await startSimulatedCall({ contactId: primary._id });
-        setCallState("live");
-      }
-    } catch (e) {
-      console.error("[Quorum] call failed", e);
-      setCallState("idle");
-    }
-  };
-
-  const onMapCommittee = async () => {
-    setMapping(true);
-    try {
-      await mapCommittee({ accountId: account._id });
-    } catch (e) {
-      console.error("[Quorum] map committee failed", e);
-    } finally {
-      // Leave a moment for the staggered cards to land.
-      setTimeout(() => setMapping(false), 3500);
-    }
-  };
-
-  const onFire = async () => {
-    setFiring(true);
-    try {
-      // Draft persona outreach and fire the cross-tool action loop together.
-      await Promise.all([
-        generateOutreach({ accountId: account._id }),
-        fireActions({ accountId: account._id }),
-      ]);
-    } catch (e) {
-      console.error("[Quorum] close loop failed", e);
-    } finally {
-      setTimeout(() => setFiring(false), 3500);
-    }
-  };
+  const nextLabel =
+    nextAction === "call"
+      ? "Qualify"
+      : nextAction === "committee"
+        ? "Map committee"
+        : nextAction === "outreach"
+          ? "Draft outreach"
+          : nextAction === "actions"
+            ? "Close loop"
+            : null;
 
   const onRethread = async () => {
     setRethreading(true);
     try {
-      await startRethread({ accountId: account._id });
+      await startRethread({ accountId: account!._id });
     } catch (e) {
-      console.error("[Quorum] rethread failed", e);
+      console.error(e);
     } finally {
       setTimeout(() => setRethreading(false), 12000);
     }
   };
 
-  const brand: string[] = account?.brandColors ?? ["#5B47EB", "#0F0F0F"];
-
   return (
-    <div
-      className="flex h-screen flex-col bg-bg"
-      style={{ ["--brand" as any]: brand[0], ["--brand2" as any]: brand[1] ?? brand[0] }}
-    >
-      {/* Brand-themed top stripe — themed live to the prospect's company */}
-      <div
-        className="h-[3px] w-full"
-        style={{
-          background: `linear-gradient(90deg, ${brand[0]}, ${brand[1] ?? brand[0]}, ${brand[0]})`,
-        }}
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="h-[2px] w-full" style={{ background: "var(--brand)" }} />
       <TopBar account={account} onRethread={onRethread} rethreading={rethreading} />
-      <main className="grid-lines grid flex-1 grid-cols-[330px_1fr_368px] gap-3 overflow-hidden p-3">
-        <ActivityFeed events={events} />
+      <Stepper
+        reached={reached}
+        callLive={callLive}
+        autopilot={autopilot}
+        done={done}
+        nextLabel={nextLabel}
+        onToggleAutopilot={() => setAutopilot((a) => !a)}
+        onRunNext={() => fire(nextAction)}
+      />
+      <main className="grid-lines grid min-h-0 flex-1 grid-cols-[330px_1fr_368px] gap-3 overflow-hidden p-3">
+        <ActivityFeed events={data.events} />
         <CallPanel
-          conversation={latestConversation}
-          transcript={transcript}
-          onStartCall={onStartCall}
+          conversation={convo}
+          transcript={data.transcript}
           callState={callState}
+          onStartCall={() => fire("call")}
         />
         <DealMap
           contacts={contacts}
           drafts={drafts}
-          onMapCommittee={onMapCommittee}
-          mapping={mapping}
+          onMapCommittee={() => fire("committee")}
+          mapping={runningRef.current === "committee" && committeeCount === 0}
         />
       </main>
       <div className="px-3 pb-3">
-        <ActionsRail actions={actions} onFire={onFire} firing={firing} />
+        <ActionsRail
+          actions={actions}
+          onFire={async () => {
+            await fire("outreach");
+            runningRef.current = null;
+            await fire("actions");
+          }}
+          firing={runningRef.current === "actions" && !actioned}
+        />
       </div>
     </div>
   );
@@ -150,7 +162,7 @@ export default function Dashboard() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="dot-grid flex h-screen items-center justify-center bg-bg">
+    <div className="dot-grid flex flex-1 items-center justify-center">
       <p className="mono-label normal-case tracking-normal text-secondary">{children}</p>
     </div>
   );
