@@ -77,7 +77,7 @@ export const workLead = internalAction({
         label: "Persona outreach drafting scheduled",
         detail: "The outreach agent will draft customer-facing emails for review before anything sends.",
         tool: "outreach generator",
-        output: { scheduledAfterMs: 8000 },
+        output: { scheduledAfterMs: committeeFinishMs },
       });
       await ctx.runMutation(internal.agentTrace.completeRun, {
         runId: runId as any,

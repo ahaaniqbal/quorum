@@ -297,26 +297,38 @@ async function execComposio(
 
 // Pull a real external receipt id out of a Composio v3 tool result. Different
 // toolkits nest the created-object id differently (Slack returns `ts` at the
-// top of `data`; HubSpot/Calendar wrap the provider payload under
-// `response_data`/`response`/`result`), so dig through the common shapes before
+// top of `data`; HubSpot/Calendar bury the created object deeper, sometimes
+// inside arrays like results:[{id}]), so walk the whole payload — objects AND
+// arrays — preferring the Slack `ts` then the shallowest id-like key, before
 // falling back to "ok". Recording the true id is what makes a "done" action a
 // verifiable receipt rather than a placeholder.
 function extractExternalId(data: any): string {
   if (data == null) return "ok";
   const seen = new Set<any>();
+  const ID_KEYS = ["id", "messageId", "eventId", "hs_object_id", "htmlLink", "permalink"];
   const scan = (node: any, depth: number): string | undefined => {
-    if (node == null || depth > 4 || typeof node !== "object" || seen.has(node)) return undefined;
+    if (node == null || depth > 6 || typeof node !== "object" || seen.has(node)) return undefined;
     seen.add(node);
+    // Arrays: HubSpot/Calendar nest the created object inside arrays
+    // (e.g. results:[{id}]). Walk each element.
+    if (Array.isArray(node)) {
+      for (const el of node) {
+        const found = scan(el, depth + 1);
+        if (found) return found;
+      }
+      return undefined;
+    }
     // Slack message timestamp is the canonical receipt for a posted message.
     if (node.ts != null && (typeof node.ts === "string" || typeof node.ts === "number"))
       return String(node.ts);
     // Most providers (HubSpot, Google Calendar) return the created object id.
-    for (const key of ["id", "messageId", "eventId", "hs_object_id"]) {
+    for (const key of ID_KEYS) {
       const val = node[key];
       if (val != null && (typeof val === "string" || typeof val === "number")) return String(val);
     }
-    // Otherwise descend into nested provider payloads.
-    for (const key of ["response_data", "response", "result", "data", "successResponseData"]) {
+    // Otherwise descend into every nested value (objects + arrays) so we find
+    // ids that providers bury under varying keys, not just a fixed list.
+    for (const key of Object.keys(node)) {
       const nested = scan(node[key], depth + 1);
       if (nested) return nested;
     }

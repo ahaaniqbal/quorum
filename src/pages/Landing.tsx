@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type MouseEvent as ReactMouseEvent } from "react";
 import {
   ArrowRight,
   BrainCircuit,
@@ -12,6 +12,22 @@ import {
   Send,
   ShieldCheck,
 } from "lucide-react";
+import DevAnnotate from "../components/DevAnnotate";
+import { ReactLenis, useLenis } from "lenis/react";
+import "lenis/dist/lenis.css";
+
+// Smooth-scroll an in-page anchor (#section) with the sticky-navbar offset,
+// using Lenis when available and falling back to native smooth scroll.
+function useAnchorClick() {
+  const lenis = useLenis();
+  return (e: ReactMouseEvent<HTMLAnchorElement>) => {
+    const href = e.currentTarget.getAttribute("href") || "";
+    if (!href.startsWith("#")) return;
+    e.preventDefault();
+    if (lenis) lenis.scrollTo(href, { offset: -72 });
+    else document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+  };
+}
 
 // Auth + the product live on the app subdomain. When the landing is served from
 // the marketing root, hand sign-in/sign-up off to the product subdomain (where
@@ -83,32 +99,36 @@ const NAV = [
 
 export default function Landing() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-bg text-text">
-      <Navbar />
-      <Hero />
-      <ProductPreview />
-      <OperatingLoop />
-      <Problem />
-      <RealWork />
-      <Moat />
-      <CtaBand />
-      <Footer />
-    </div>
+    <ReactLenis root options={{ duration: 1.15, smoothWheel: true, wheelMultiplier: 1, touchMultiplier: 1.5 }}>
+      <div className="relative min-h-screen overflow-hidden bg-bg text-text">
+        <Navbar />
+        <Hero />
+        <ProductPreview />
+        <OperatingLoop />
+        <Problem />
+        <RealWork />
+        <Moat />
+        <CtaBand />
+        <Footer />
+        {import.meta.env.DEV && <DevAnnotate />}
+      </div>
+    </ReactLenis>
   );
 }
 
 function Navbar() {
+  const onAnchor = useAnchorClick();
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5 sm:px-8">
-        <a href="#top" className="flex min-w-0 items-center gap-3" aria-label="Quorum">
+    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-bg/80 backdrop-blur">
+      <div className="relative mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5 sm:px-8">
+        <a href="#top" onClick={onAnchor} className="flex min-w-0 items-center gap-3" aria-label="Quorum">
           <img src="/quorum-logo.svg" alt="Quorum" className="h-6 w-auto" />
           <span className="hidden h-4 w-px bg-border md:block" />
           <span className="mono-label hidden text-tertiary md:block">AI account execution</span>
         </a>
-        <nav className="hidden items-center gap-8 text-[13px] text-secondary md:flex">
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-[13px] text-secondary md:flex">
           {NAV.map((n) => (
-            <a key={n.label} href={n.href} className="transition-colors hover:text-text">
+            <a key={n.label} href={n.href} onClick={onAnchor} className="transition-colors hover:text-text">
               {n.label}
             </a>
           ))}
@@ -120,9 +140,15 @@ function Navbar() {
           >
             Sign in
           </a>
-          <a href={authUrl("/signin")} className="btn-primary h-9 rounded-none px-4 text-[13px]">
+          <motion.a
+            href={authUrl("/signin")}
+            className="btn-primary h-9 rounded-none px-4 text-[13px]"
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
+          >
             Preview product
-          </a>
+          </motion.a>
         </div>
       </div>
     </header>
@@ -133,7 +159,7 @@ function Hero() {
   return (
     <section id="top" className="relative px-6 pb-16 pt-24 text-center sm:pt-28">
       <Reveal className="mx-auto max-w-[1300px]">
-        <p className="mono-label text-accent-soft">_AI account execution</p>
+        <p className="mono-label text-accent-soft">AI account execution</p>
         <h1 className="mx-auto mt-7 max-w-[1180px] text-balance text-[38px] font-semibold leading-[1.06] tracking-tight sm:text-[62px]">
           The <span className="text-accent">AI account executive</span> that works every inbound account.
         </h1>
@@ -142,13 +168,25 @@ function Hero() {
           outreach, CRM updates, meetings, and team alerts. Humans review the risky work. Quorum handles the rest.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a href={authUrl("/signup")} className="btn-secondary h-12 rounded-none px-6 text-[14px]">
+          <motion.a
+            href={authUrl("/signup")}
+            className="btn-secondary h-12 rounded-none px-6 text-[14px]"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
+          >
             Create workspace
-          </a>
-          <a href={authUrl("/signin")} className="btn-primary h-12 rounded-none px-6 text-[14px]">
+          </motion.a>
+          <motion.a
+            href={authUrl("/signin")}
+            className="btn-primary h-12 rounded-none px-6 text-[14px]"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
+          >
             Preview product
             <ArrowRight size={16} strokeWidth={2.2} />
-          </a>
+          </motion.a>
         </div>
       </Reveal>
     </section>
@@ -157,7 +195,7 @@ function Hero() {
 
 function ProductPreview() {
   return (
-    <section className="relative z-10 px-6 pt-4">
+    <section className="relative z-10 px-6 pb-16 pt-4">
       <Reveal className="mx-auto max-w-[1100px]">
         <BrowserFrame src="/shot-command.png" alt="Quorum account command center" />
         <p className="mono-label mt-4 text-center text-tertiary">
@@ -208,7 +246,7 @@ function Problem() {
       <div className="mx-auto max-w-[1180px] px-6">
         <Reveal>
           <p className="mono-label text-accent-soft">The gap</p>
-          <h2 className="mt-4 max-w-3xl text-balance text-[32px] font-semibold leading-tight tracking-tight sm:text-[46px]">
+          <h2 className="mt-4 max-w-5xl text-balance text-[32px] font-semibold leading-tight tracking-tight sm:text-[44px]">
             Revenue teams bought a dozen tools. The work still falls between them.
           </h2>
           <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-secondary">
@@ -219,11 +257,15 @@ function Problem() {
         <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
           {PROBLEMS.map((p, i) => (
             <Reveal key={p.title} delay={i * 0.08}>
-              <div className="cell h-full p-6 transition-colors hover:border-border-strong">
+              <motion.div
+                className="cell h-full p-6 transition-colors hover:border-border-strong"
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
                 <span className="mono-label tnum text-accent-soft">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="mt-4 text-[18px] font-semibold leading-snug text-text">{p.title}</h3>
                 <p className="mt-3 text-[14px] leading-relaxed text-secondary">{p.body}</p>
-              </div>
+              </motion.div>
             </Reveal>
           ))}
         </div>
@@ -239,7 +281,7 @@ function RealWork() {
       <div className="mx-auto max-w-[1180px] px-6">
         <Reveal>
           <p className="mono-label text-accent-soft">How it becomes real work</p>
-          <h2 className="mt-4 max-w-3xl text-balance text-[32px] font-semibold leading-tight tracking-tight sm:text-[46px]">
+          <h2 className="mt-4 max-w-5xl text-balance text-[32px] font-semibold leading-tight tracking-tight sm:text-[44px]">
             The account brain is only useful if actions land in the tools customers already use.
           </h2>
           <p className="mt-5 max-w-2xl text-[16px] leading-relaxed text-secondary">
@@ -312,10 +354,14 @@ function Moat() {
         <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
           {MOAT.map((m, i) => (
             <Reveal key={m.title} delay={i * 0.08}>
-              <div className="cell h-full p-6 transition-colors hover:border-border-strong">
+              <motion.div
+                className="cell h-full p-6 transition-colors hover:border-border-strong"
+                whileHover={{ y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
                 <h3 className="text-[17px] font-semibold leading-snug text-text">{m.title}</h3>
                 <p className="mt-3 text-[14px] leading-relaxed text-secondary">{m.body}</p>
-              </div>
+              </motion.div>
             </Reveal>
           ))}
         </div>
@@ -346,19 +392,25 @@ function CtaBand() {
                 and hold everything for your review.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <a
+                <motion.a
                   href={authUrl("/signin")}
-                  className="inline-flex h-12 items-center gap-2 bg-black px-6 text-[14px] font-medium text-white transition-transform hover:-translate-y-px"
+                  className="inline-flex h-12 items-center gap-2 bg-black px-6 text-[14px] font-medium text-white"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 22 }}
                 >
                   Preview product
                   <ArrowRight size={16} strokeWidth={2.2} />
-                </a>
-                <a
+                </motion.a>
+                <motion.a
                   href={authUrl("/signup")}
                   className="inline-flex h-12 items-center gap-2 border border-black/40 px-6 text-[14px] font-medium text-black transition-colors hover:border-black hover:bg-black/5"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 22 }}
                 >
                   Create workspace
-                </a>
+                </motion.a>
               </div>
             </div>
           </div>
@@ -369,6 +421,7 @@ function CtaBand() {
 }
 
 function Footer() {
+  const onAnchor = useAnchorClick();
   return (
     <footer className="relative overflow-hidden border-t border-border pt-16">
       <div className="mx-auto max-w-[1180px] px-6">
@@ -378,9 +431,9 @@ function Footer() {
             <span className="mono-label text-tertiary">Governed autonomy for revenue teams</span>
           </div>
           <div className="flex items-center gap-6 text-[13px] text-secondary">
-            <a href="#product" className="transition-colors hover:text-text">Product</a>
-            <a href="#why" className="transition-colors hover:text-text">Why</a>
-            <a href="#moat" className="transition-colors hover:text-text">Moat</a>
+            <a href="#product" onClick={onAnchor} className="transition-colors hover:text-text">Product</a>
+            <a href="#why" onClick={onAnchor} className="transition-colors hover:text-text">Why</a>
+            <a href="#moat" onClick={onAnchor} className="transition-colors hover:text-text">Moat</a>
             <a href={authUrl("/signin")} className="transition-colors hover:text-text">Sign in</a>
             <a href={authUrl("/signup")} className="btn-primary h-9 rounded-none px-4 text-[12px]">
               Create workspace
@@ -389,12 +442,11 @@ function Footer() {
         </div>
       </div>
       {/* Oversized brand wordmark */}
-      <div className="pointer-events-none select-none px-4 pb-2">
-        <img
-          src="/footer-logo.svg"
-          alt="Quorum"
-          className="mx-auto w-full max-w-[1180px] opacity-[0.07] invert"
-        />
+      <div className="pointer-events-none select-none px-4">
+        {/* show only the top 75% of the wordmark; the rest is clipped off the bottom */}
+        <div className="mx-auto aspect-[1380/262] w-full max-w-[1180px] overflow-hidden">
+          <img src="/footer-logo.svg" alt="Quorum" className="w-full opacity-[0.07] invert" />
+        </div>
       </div>
     </footer>
   );
