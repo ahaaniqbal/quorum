@@ -1,12 +1,28 @@
-import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useAction } from "convex/react";
 import { motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
 
-export default function Onboarding({ defaultName }: { defaultName?: string }) {
+const FREE_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "outlook.com",
+  "hotmail.com", "live.com", "msn.com", "icloud.com", "me.com", "mac.com",
+  "aol.com", "proton.me", "protonmail.com", "gmx.com", "mail.com", "yandex.com",
+  "zoho.com", "hey.com", "fastmail.com",
+]);
+
+export default function Onboarding({
+  defaultName,
+  defaultEmail,
+}: {
+  defaultName?: string;
+  defaultEmail?: string;
+}) {
   const save = useMutation(api.profiles.saveProfile);
+  const autofill = useAction(api.actions.autofillSeller);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [autofilling, setAutofilling] = useState(false);
+  const [autofilledFrom, setAutofilledFrom] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: defaultName ?? "",
     companyName: "",
@@ -14,6 +30,33 @@ export default function Onboarding({ defaultName }: { defaultName?: string }) {
     valueProp: "",
     icp: "",
   });
+
+  const domain = defaultEmail?.split("@")[1]?.toLowerCase();
+  const businessDomain = domain && !FREE_DOMAINS.has(domain);
+
+  // Read the seller's own company from their business-email domain and pre-fill
+  // the profile. Runs once; only fills fields the user hasn't already typed.
+  const ran = useRef(false);
+  useEffect(() => {
+    if (ran.current || !defaultEmail || !businessDomain) return;
+    ran.current = true;
+    setAutofilling(true);
+    autofill({ email: defaultEmail })
+      .then((res) => {
+        if (!res) return;
+        setForm((f) => ({
+          ...f,
+          companyName: f.companyName || res.companyName,
+          product: f.product || res.product,
+          valueProp: f.valueProp || res.valueProp,
+          icp: f.icp || res.icp,
+        }));
+        if (res.product || res.valueProp) setAutofilledFrom(res.domain);
+      })
+      .catch(() => {})
+      .finally(() => setAutofilling(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -86,6 +129,16 @@ export default function Onboarding({ defaultName }: { defaultName?: string }) {
                   Quorum's AI rep pitches <span className="text-text">your</span> product on every
                   call — so this matters.
                 </p>
+                {autofilling ? (
+                  <div className="mt-3 flex items-center gap-2 text-[12px] text-accent-soft">
+                    <span className="h-3 w-3 animate-spin rounded-full border border-accent-soft border-t-transparent" />
+                    Reading {domain} to fill this in…
+                  </div>
+                ) : autofilledFrom ? (
+                  <div className="mt-3 flex items-center gap-1.5 text-[12px] text-accent-soft">
+                    <span>✦</span> Pre-filled from {autofilledFrom} — edit anything.
+                  </div>
+                ) : null}
                 <div className="mt-5 space-y-3">
                   <Field label="Your company" value={form.companyName} onChange={set("companyName")} placeholder="Acme Inc." />
                   <Field

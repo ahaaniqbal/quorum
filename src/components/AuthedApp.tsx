@@ -44,7 +44,9 @@ export default function AuthedApp() {
   // Real (non-anonymous) users who haven't onboarded yet.
   if (!isAnon && !me?.profile?.onboarded) {
     const fallback = me?.user?.name ?? me?.user?.email?.split("@")[0];
-    return <Onboarding defaultName={fallback ?? undefined} />;
+    return (
+      <Onboarding defaultName={fallback ?? undefined} defaultEmail={me?.user?.email ?? undefined} />
+    );
   }
 
   return (

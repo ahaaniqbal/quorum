@@ -13,6 +13,7 @@ import {
 } from "./lib/seed";
 import { fiberEmailToPerson, fiberCompany } from "./lib/fiber";
 import { orangeSliceCompany } from "./lib/orangeslice";
+import { openaiChat } from "./lib/openai";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Best-effort brand extraction via Firecrawl: scrape the homepage and pull a
@@ -42,6 +43,124 @@ async function tryFirecrawlBrand(
     return null;
   }
 }
+
+// Scrape the homepage as text (title + description + main content) for the
+// seller-profile autofill. Returns a trimmed snippet, or null on any failure.
+async function tryFirecrawlText(domain: string): Promise<string | null> {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        url: `https://${domain}`,
+        formats: ["markdown"],
+        onlyMainContent: true,
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const meta = j?.data?.metadata ?? {};
+    const text = `${meta.title ?? ""}\n${meta.description ?? meta.ogDescription ?? ""}\n${
+      j?.data?.markdown ?? ""
+    }`.trim();
+    return text ? text.slice(0, 3500) : null;
+  } catch {
+    return null;
+  }
+}
+
+const FREE_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "outlook.com",
+  "hotmail.com", "live.com", "msn.com", "icloud.com", "me.com", "mac.com",
+  "aol.com", "proton.me", "protonmail.com", "gmx.com", "mail.com", "yandex.com",
+  "zoho.com", "hey.com", "fastmail.com",
+]);
+
+function titleCase(s: string): string {
+  return s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Read the seller's OWN company from their business-email domain and synthesize
+// the onboarding fields (company, what you sell, value prop, ICP). Pre-fill
+// only — the user reviews and edits before saving. Returns null for free/personal
+// domains (nothing to infer) so the UI just leaves the form blank.
+export const autofillSeller = action({
+  args: { email: v.string() },
+  handler: async (
+    ctx,
+    { email }
+  ): Promise<{
+    companyName: string;
+    product: string;
+    valueProp: string;
+    icp: string;
+    domain: string;
+    source: string;
+  } | null> => {
+    const domain = parseDomain(email);
+    if (!domain || FREE_EMAIL_DOMAINS.has(domain)) return null;
+
+    const [website, fiber, os] = await Promise.all([
+      tryFirecrawlText(domain),
+      fiberCompany(domain).catch(() => null),
+      orangeSliceCompany(domain).catch(() => null),
+    ]);
+
+    const nameGuess =
+      fiber?.companyName ?? titleCase(domain.split(".")[0]);
+
+    // No signal at all → still hand back the company name so the field isn't empty.
+    if (!website && !fiber?.summary && !os?.description) {
+      return { companyName: nameGuess, product: "", valueProp: "", icp: "", domain, source: "domain" };
+    }
+
+    const context = [
+      `Company domain: ${domain}`,
+      fiber?.companyName && `Known name: ${fiber.companyName}`,
+      fiber?.industry && `Industry: ${fiber.industry}`,
+      fiber?.summary && `Company summary: ${fiber.summary}`,
+      os?.description && `LinkedIn description: ${os.description}`,
+      website && `Website content:\n${website}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    let out: any = null;
+    const raw = await openaiChat(
+      [
+        {
+          role: "system",
+          content:
+            'You fill out a sales tool\'s seller profile from public signals about a company. Return ONLY strict JSON: {"companyName":"","product":"","valueProp":"","icp":""}. product = one tight line on what they sell. valueProp = one line on the core outcome/benefit. icp = one line on who they sell to (segment, size). Base everything strictly on the signals provided; if a field is genuinely unclear, return an empty string for it. Never invent specific metrics or customers.',
+        },
+        { role: "user", content: context },
+      ],
+      { json: true, maxTokens: 300 }
+    );
+    if (raw) {
+      try {
+        out = JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim());
+      } catch {
+        /* fall through to name-only */
+      }
+    }
+
+    return {
+      companyName: out?.companyName || nameGuess,
+      product: out?.product ?? "",
+      valueProp: out?.valueProp ?? "",
+      icp: out?.icp ?? "",
+      domain,
+      source: website ? "website" : fiber ? "fiber" : os ? "linkedin" : "domain",
+    };
+  },
+});
 
 export const enrichFromEmail = action({
   args: { email: v.string() },
