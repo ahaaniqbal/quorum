@@ -22,8 +22,8 @@ export default function Stepper({
   const activeIdx = done ? -1 : reached + 1;
 
   return (
-    <div className="flex items-center justify-between border-b border-border px-5 py-2.5">
-      <div className="flex items-center gap-1">
+    <div className="flex flex-col gap-2 border-b border-border px-4 py-2.5 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {STAGES.map((s, i) => {
           const isDone = i <= reached;
           const isActive = i === activeIdx;
@@ -70,15 +70,15 @@ export default function Stepper({
       </div>
 
       {/* Autopilot controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         {!done && (
-          <div className="flex items-center gap-1.5 rounded border border-border bg-surface px-2 py-1">
+          <div className="flex min-w-0 items-center gap-1.5 border border-border bg-surface px-2 py-1">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
                 callLive ? "animate-pulse bg-good" : autopilot ? "animate-pulse bg-accent" : "bg-tertiary"
               }`}
             />
-            <span className="mono-label normal-case tracking-normal text-secondary">
+            <span className="mono-label truncate normal-case tracking-normal text-secondary">
               {callLive
                 ? "live call · your turn to reply"
                 : autopilot

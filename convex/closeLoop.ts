@@ -19,12 +19,37 @@ export const fireActions = mutation({
     const committeeCount = contacts.filter((c) => !c.isPrimary).length;
 
     const defs = [
-      { type: "slack", label: `Slack → #revenue: ${company} qualified, meeting booked` },
-      { type: "hubspot", label: `HubSpot: deal created for ${company} pilot` },
-      { type: "calendar", label: `Calendar: invite sent for Thursday 11:00am` },
+      {
+        type: "slack",
+        system: "Slack",
+        label: `Slack → #revenue: ${company} qualified, meeting booked`,
+        confidence: 84,
+        risk: "low",
+        requirements: ["Composio API key", "Slack connected account", "Revenue channel"],
+      },
+      {
+        type: "hubspot",
+        system: "HubSpot",
+        label: `HubSpot: deal created for ${company} pilot`,
+        confidence: 78,
+        risk: "medium",
+        requirements: ["Composio API key", "HubSpot connected account", "Primary contact email"],
+      },
+      {
+        type: "calendar",
+        system: "Google Calendar",
+        label: `Calendar: invite sent for Thursday 11:00am`,
+        confidence: 72,
+        risk: "medium",
+        requirements: ["Composio API key", "Google Calendar connected account", "Primary contact email"],
+      },
       {
         type: "email",
+        system: "AgentMail",
         label: `Outreach sent to ${committeeCount} committee members`,
+        confidence: 76,
+        risk: "high",
+        requirements: ["Approved drafts", "AgentMail API key", "Recipient email addresses"],
       },
     ];
 
@@ -45,13 +70,34 @@ export const fireActions = mutation({
         .filter((q) => q.eq(q.field("type"), d.type))
         .first();
       if (prior) {
-        await ctx.db.patch(prior._id, { status: "pending", label: d.label });
+        await ctx.db.patch(prior._id, {
+          status: "pending",
+          label: d.label,
+          system: d.system,
+          confidence: d.confidence,
+          risk: d.risk,
+          requirements: d.requirements,
+          audit: {
+            stage: "queued",
+            queuedAt: Date.now(),
+            requirements: d.requirements,
+          },
+        });
       } else {
         await ctx.db.insert("actions", {
           accountId,
           type: d.type,
           status: "pending",
           label: d.label,
+          system: d.system,
+          confidence: d.confidence,
+          risk: d.risk,
+          requirements: d.requirements,
+          audit: {
+            stage: "queued",
+            queuedAt: Date.now(),
+            requirements: d.requirements,
+          },
         });
       }
 
@@ -109,9 +155,23 @@ export const complete = internalAction({
       label: finalLabel,
       status,
       externalId: result.id,
+      audit: {
+        stage: result.ok ? "executed" : "blocked",
+        completedAt: Date.now(),
+        externalId: result.id,
+        lastError: result.ok ? undefined : missingRequirement(type),
+      },
     });
   },
 });
+
+function missingRequirement(type: string): string {
+  if (type === "email") return "AgentMail is not connected or no approved drafts were available.";
+  if (type === "hubspot") return "HubSpot is not connected through Composio.";
+  if (type === "calendar") return "Google Calendar is not connected through Composio.";
+  if (type === "slack") return "Slack is not connected through Composio.";
+  return "Destination is not connected.";
+}
 
 // Execute a Composio tool for real. Returns ok:false when no account is
 // connected for that toolkit (the honest "needs connection" state).
@@ -144,6 +204,7 @@ export const markDone = internalMutation({
     label: v.string(),
     status: v.string(),
     externalId: v.optional(v.string()),
+    audit: v.optional(v.any()),
   },
   handler: async (ctx, a) => {
     const prior = await ctx.db
@@ -156,6 +217,7 @@ export const markDone = internalMutation({
         status: a.status,
         label: a.label,
         ...(a.externalId ? { externalId: a.externalId } : {}),
+        ...(a.audit ? { audit: a.audit } : {}),
       });
     }
     await ctx.db.insert("events", {

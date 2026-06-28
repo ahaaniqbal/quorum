@@ -24,13 +24,13 @@ export default function ActionsRail({
   );
 
   return (
-    <div className="cell flex items-center gap-3 px-4 py-2.5">
+    <div className="cell flex flex-col items-stretch gap-3 px-4 py-3 md:flex-row md:items-center md:py-2.5">
       <span className="plus plus-tl" />
       <span className="plus plus-tr" />
       <span className="plus plus-bl" />
       <span className="plus plus-br" />
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <span className="mono-label text-tertiary">04</span>
         <span className="mono-label text-secondary">Actions</span>
         <span className="hidden text-[11px] text-tertiary xl:inline">
@@ -42,6 +42,10 @@ export default function ActionsRail({
         {DEFS.map((d) => {
           const a = byType[d.type];
           const status = a?.status ?? "idle";
+          const confidence =
+            a?.confidence ??
+            (status === "done" ? 92 : status === "pending" ? 70 : status === "skipped" ? 45 : undefined);
+          const risk = a?.risk ?? (status === "skipped" ? "blocked" : status === "pending" ? "medium" : undefined);
           return (
             <motion.div
               key={d.type}
@@ -68,7 +72,9 @@ export default function ActionsRail({
                       ? "→"
                       : "○"}
               </span>{" "}
-              {a?.label ?? d.label}
+              {a?.system ?? d.label}
+              {confidence ? <span className="text-tertiary"> · {confidence}%</span> : null}
+              {risk ? <span className="text-tertiary"> · {risk} risk</span> : null}
             </motion.div>
           );
         })}
@@ -77,13 +83,13 @@ export default function ActionsRail({
       {needsReview && (
         <Link
           to="/review"
-          className="mono-label shrink-0 rounded border border-warn/30 bg-warn/10 px-2 py-1.5 normal-case tracking-normal text-warn transition-colors hover:border-warn/50"
+          className="mono-label shrink-0 border border-warn/30 bg-warn/10 px-2 py-1.5 text-center normal-case tracking-normal text-warn transition-colors hover:border-warn/50"
         >
           audit actions →
         </Link>
       )}
 
-      <button onClick={onFire} disabled={firing} className="btn-primary shrink-0">
+      <button onClick={onFire} disabled={firing} className="btn-primary w-full shrink-0 md:w-auto">
         {firing ? "Firing…" : "Close the loop"}
       </button>
     </div>

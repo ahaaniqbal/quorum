@@ -238,7 +238,7 @@ export default function Onboarding({
   }
 
   return (
-    <div className="grid-lines relative min-h-screen overflow-hidden bg-bg text-text">
+    <div className="grid-lines relative min-h-screen overflow-x-hidden bg-bg text-text">
       <div className="border-b border-border bg-bg">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
           <div className="mono-label text-text">QUORUM</div>
@@ -246,8 +246,8 @@ export default function Onboarding({
         </div>
       </div>
 
-      <main className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl gap-5 px-6 py-6 md:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
-        <aside className="cell flex min-h-[520px] flex-col p-5 md:min-h-[620px]">
+      <main className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl gap-5 px-4 py-5 sm:px-6 sm:py-6 md:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
+        <aside className="cell flex min-h-[420px] flex-col p-5 md:min-h-[620px]">
           <span className="plus plus-tl" />
           <span className="plus plus-tr" />
           <span className="plus plus-bl" />
@@ -307,7 +307,7 @@ export default function Onboarding({
           </div>
         </aside>
 
-        <section className="cell min-h-[620px] overflow-hidden">
+        <section className="cell min-h-[520px] overflow-hidden md:min-h-[620px]">
           <span className="plus plus-tl" />
           <span className="plus plus-tr" />
           <span className="plus plus-bl" />
@@ -317,7 +317,7 @@ export default function Onboarding({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22 }}
-            className="flex min-h-[620px] flex-col"
+            className="flex min-h-[520px] flex-col md:min-h-[620px]"
           >
             {step === 0 && <LoopIntro />}
             {step === 1 && (
@@ -332,12 +332,12 @@ export default function Onboarding({
             {step === 2 && <ControlsStep />}
             {step === 3 && <LaunchPathStep launchPath={launchPath} setLaunchPath={setLaunchPath} />}
 
-            <div className="mt-auto flex items-center justify-between border-t border-border px-6 py-4">
+            <div className="mt-auto flex flex-col-reverse gap-2 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <button
                 type="button"
                 onClick={() => setStep((current) => Math.max(current - 1, 0))}
                 disabled={step === 0 || saving}
-                className="btn-secondary h-10 px-4 disabled:pointer-events-none"
+                className="btn-secondary h-10 w-full px-4 disabled:pointer-events-none sm:w-auto"
               >
                 Back
               </button>
@@ -345,7 +345,7 @@ export default function Onboarding({
                 type="button"
                 onClick={next}
                 disabled={!canContinue || saving}
-                className="btn-primary h-10 px-5"
+                className="btn-primary h-10 w-full px-5 sm:w-auto"
               >
                 {step === 3 ? (saving ? "Launching…" : "Enter Quorum") : "Continue"}
                 <ArrowRight size={15} strokeWidth={2.2} />

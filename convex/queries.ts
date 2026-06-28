@@ -1,6 +1,7 @@
 import { query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { buildAccountIntelligence } from "./lib/intelligence";
 
 export const getAccountFull = query({
   args: { accountId: v.id("accounts") },
@@ -64,6 +65,13 @@ export const getAccountFull = query({
       events,
       actions,
       drafts,
+      intelligence: buildAccountIntelligence({
+        account,
+        contacts,
+        latestConversation,
+        drafts,
+        actions,
+      }),
     };
   },
 });

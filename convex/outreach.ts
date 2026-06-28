@@ -9,6 +9,7 @@ type Contact = {
   role: string;
   persona?: string;
   isPrimary: boolean;
+  enrichment?: any;
 };
 
 type Seller = {
@@ -128,6 +129,11 @@ export const generateOutreach = action({
     );
 
     for (const { contact, draft } of drafts) {
+      const confidence =
+        (contact.enrichment?.linkedin ? 8 : 0) +
+        (data.latestConversation?.summary ? 8 : 0) +
+        (account.enrichment?.source === "fiber" ? 10 : account.enrichment?.source === "derived" ? -10 : 2) +
+        70;
       await ctx.runMutation(api.outreach.saveDraft, {
         accountId,
         contactId: contact._id as any,
@@ -136,6 +142,17 @@ export const generateOutreach = action({
         persona: contact.role,
         contactName: contact.name,
         contactTitle: contact.title ?? "",
+        confidence: Math.max(45, Math.min(94, confidence)),
+        rationale: {
+          signal,
+          callOutcome,
+          source: key ? "openai" : "template",
+          safeguards: [
+            "Draft is held for human approval.",
+            "Persona and buying role are visible before send.",
+            "Approved email only sends after AgentMail is connected.",
+          ],
+        },
       });
     }
 
@@ -159,6 +176,8 @@ export const saveDraft = mutation({
     persona: v.string(),
     contactName: v.string(),
     contactTitle: v.string(),
+    confidence: v.optional(v.number()),
+    rationale: v.optional(v.any()),
   },
   handler: async (ctx, a) => {
     await ctx.db.insert("drafts", {
@@ -168,6 +187,8 @@ export const saveDraft = mutation({
       body: a.body,
       persona: a.persona,
       status: "draft",
+      confidence: a.confidence,
+      rationale: a.rationale,
     });
     await ctx.db.patch(a.contactId, { status: "contacted" });
     await ctx.db.insert("events", {

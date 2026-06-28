@@ -58,6 +58,19 @@ export default function Review() {
   }, [drafts, filter]);
 
   async function setStatus(draftId: Id<"drafts">, status: "approved" | "skipped") {
+    if (status === "approved") {
+      const draft = drafts.find((item: any) => item._id === draftId);
+      const current = {
+        subject: draftEdits[String(draftId)]?.subject ?? draft?.subject ?? "",
+        body: draftEdits[String(draftId)]?.body ?? draft?.body ?? "",
+      };
+      const warnings = getDraftWarnings(current.subject, current.body);
+      if (warnings.length) {
+        setNotice("Fix draft QA warnings before approving.");
+        setTimeout(() => setNotice(null), 3000);
+        return;
+      }
+    }
     setWorking(`${draftId}:${status}`);
     try {
       await setDraftStatus({ draftId, status });
@@ -161,127 +174,18 @@ export default function Review() {
           ) : (
             <div className="divide-y divide-border">
               {visibleDrafts.map((draft: any) => (
-                <article key={draft._id} className="grid gap-4 px-4 py-4 lg:grid-cols-[240px_1fr_200px]">
-                  <div className="min-w-0">
-                    <Link
-                      to={`/deal/${draft.account._id}`}
-                      className="text-[14px] font-semibold text-text transition-colors hover:text-accent-soft"
-                    >
-                      {draft.account.companyName}
-                    </Link>
-                    <p className="mono-label truncate normal-case tracking-normal text-tertiary">
-                      {draft.account.domain}
-                    </p>
-                    <div className="mt-3">
-                      <p className="truncate text-[13px] font-medium text-text">
-                        {draft.contact?.name ?? "Unknown contact"}
-                      </p>
-                      <p className="truncate text-[12px] text-tertiary">{draft.contact?.title}</p>
-                      <p className="mt-1 mono-label normal-case tracking-normal text-secondary">
-                        {ROLE_LABEL[draft.contact?.role] ?? draft.persona}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill status={draft.status} />
-                      <span className="mono-label normal-case tracking-normal text-tertiary">
-                        {timeAgo(draft._creationTime)}
-                      </span>
-                    </div>
-                    {editId === draft._id ? (
-                      <div className="mt-2 space-y-2">
-                        <label className="block">
-                          <span className="mono-label mb-1 block">Subject</span>
-                          <input
-                            value={edit.subject}
-                            onChange={(event) => setEdit((current) => ({ ...current, subject: event.target.value }))}
-                            className="h-9 w-full rounded border border-border bg-bg px-3 text-[12px] text-text outline-none focus:border-border-strong"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mono-label mb-1 block">Body</span>
-                          <textarea
-                            value={edit.body}
-                            onChange={(event) => setEdit((current) => ({ ...current, body: event.target.value }))}
-                            rows={7}
-                            className="w-full resize-y rounded border border-border bg-bg px-3 py-2 text-[12px] leading-relaxed text-text outline-none focus:border-border-strong"
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="mt-2 text-[13px] font-semibold text-text">
-                          {draftEdits[draft._id]?.subject ?? draft.subject}
-                        </p>
-                        <p className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap border border-border bg-bg p-3 text-[12px] leading-relaxed text-secondary">
-                          {draftEdits[draft._id]?.body ?? draft.body}
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col items-stretch justify-center gap-2">
-                    {editId === draft._id ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => saveEdit(draft)}
-                          disabled={working !== null}
-                          className="btn-primary h-9 px-3 text-[12px]"
-                        >
-                          {working === `${draft._id}:save` ? "Saving…" : "Save edit"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditId(null)}
-                          disabled={working !== null}
-                          className="btn-secondary h-9 px-3 text-[12px]"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditId(draft._id);
-                          setEdit({
-                            subject: draftEdits[draft._id]?.subject ?? draft.subject,
-                            body: draftEdits[draft._id]?.body ?? draft.body,
-                          });
-                        }}
-                        disabled={working !== null}
-                        className="btn-secondary h-9 px-3 text-[12px]"
-                      >
-                        Edit draft
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setStatus(draft._id, "approved")}
-                      disabled={editId === draft._id || draft.status === "approved" || working !== null}
-                      className="btn-primary h-9 px-3 text-[12px]"
-                    >
-                      {working === `${draft._id}:approved` ? "Approving…" : "Approve draft"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStatus(draft._id, "skipped")}
-                      disabled={editId === draft._id || draft.status === "skipped" || working !== null}
-                      className="btn-secondary h-9 px-3 text-[12px]"
-                    >
-                      {working === `${draft._id}:skipped` ? "Skipping…" : "Skip draft"}
-                    </button>
-                    <Link
-                      to={`/deal/${draft.account._id}`}
-                      className="mono-label mt-1 text-center normal-case tracking-normal text-tertiary transition-colors hover:text-secondary"
-                    >
-                      Open account →
-                    </Link>
-                  </div>
-                </article>
+                <DraftReviewRow
+                  key={draft._id}
+                  draft={draft}
+                  draftEdits={draftEdits}
+                  editId={editId}
+                  edit={edit}
+                  working={working}
+                  setEdit={setEdit}
+                  setEditId={setEditId}
+                  saveEdit={saveEdit}
+                  setStatus={setStatus}
+                />
               ))}
             </div>
           )}
@@ -308,39 +212,55 @@ export default function Review() {
           ) : (
             <div className="divide-y divide-border">
               {actions.map((action: any) => (
-                <div
-                  key={action._id}
-                  className="grid items-center gap-3 px-4 py-3 md:grid-cols-[180px_1fr_220px]"
-                >
-                  <div>
-                    <Link
-                      to={`/deal/${action.account._id}`}
-                      className="text-[13px] font-semibold text-text transition-colors hover:text-accent-soft"
-                    >
-                      {action.account.companyName}
-                    </Link>
-                    <p className="mono-label truncate normal-case tracking-normal text-tertiary">
-                      {action.account.domain}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill status={action.status} />
-                      <span className="mono-label normal-case tracking-normal text-tertiary">
-                        {action.type}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-[12px] text-secondary">{action.label}</p>
-                  </div>
-                  <p className="mono-label normal-case tracking-normal text-tertiary md:text-right">
-                    {ACTION_UNLOCK[action.type] ?? "Check integration setup"}
-                  </p>
-                </div>
+                <ActionAuditRow key={action._id} action={action} />
               ))}
             </div>
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function ActionAuditRow({ action }: { action: any }) {
+  const confidence =
+    action.confidence ??
+    (action.status === "done" ? 92 : action.status === "pending" ? 70 : action.status === "skipped" ? 45 : 52);
+  const risk = action.risk ?? (action.status === "skipped" ? "blocked" : action.status === "pending" ? "medium" : "low");
+  const blocker =
+    action.audit?.lastError ??
+    (action.requirements?.length ? `Requires ${action.requirements.join(", ")}.` : ACTION_UNLOCK[action.type] ?? "Check integration setup");
+
+  return (
+    <div className="grid items-center gap-3 px-4 py-3 md:grid-cols-[180px_1fr_220px]">
+      <div className="min-w-0">
+        <Link
+          to={`/deal/${action.account._id}`}
+          className="text-[13px] font-semibold text-text transition-colors hover:text-accent-soft"
+        >
+          {action.account.companyName}
+        </Link>
+        <p className="mono-label truncate normal-case tracking-normal text-tertiary">
+          {action.account.domain}
+        </p>
+      </div>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill status={action.status} />
+          <span className="mono-label normal-case tracking-normal text-tertiary">
+            {action.system ?? action.type}
+          </span>
+          <span className="mono-label normal-case tracking-normal text-accent-soft">
+            {confidence}% confidence
+          </span>
+          <span className="mono-label normal-case tracking-normal text-warn">{risk} risk</span>
+        </div>
+        <p className="mt-1 truncate text-[12px] text-secondary">{action.label}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-tertiary">{blocker}</p>
+      </div>
+      <p className="mono-label normal-case tracking-normal text-tertiary md:text-right">
+        {ACTION_UNLOCK[action.type] ?? "Check integration setup"}
+      </p>
     </div>
   );
 }
@@ -434,6 +354,201 @@ function StatusPill({ status }: { status: string }) {
       {status.replace(/_/g, " ")}
     </span>
   );
+}
+
+function DraftReviewRow({
+  draft,
+  draftEdits,
+  editId,
+  edit,
+  working,
+  setEdit,
+  setEditId,
+  saveEdit,
+  setStatus,
+}: {
+  draft: any;
+  draftEdits: Record<string, { subject: string; body: string }>;
+  editId: string | null;
+  edit: { subject: string; body: string };
+  working: string | null;
+  setEdit: React.Dispatch<React.SetStateAction<{ subject: string; body: string }>>;
+  setEditId: React.Dispatch<React.SetStateAction<string | null>>;
+  saveEdit: (draft: any) => Promise<void>;
+  setStatus: (draftId: Id<"drafts">, status: "approved" | "skipped") => Promise<void>;
+}) {
+  const currentSubject = draftEdits[draft._id]?.subject ?? draft.subject;
+  const currentBody = draftEdits[draft._id]?.body ?? draft.body;
+  const warnings = getDraftWarnings(currentSubject, currentBody);
+  const confidence = draft.confidence ?? inferDraftConfidence(draft, warnings);
+  const blocked = warnings.length > 0;
+
+  return (
+    <article className="grid gap-4 px-4 py-4 lg:grid-cols-[240px_1fr_200px]">
+      <div className="min-w-0">
+        <Link
+          to={`/deal/${draft.account._id}`}
+          className="text-[14px] font-semibold text-text transition-colors hover:text-accent-soft"
+        >
+          {draft.account.companyName}
+        </Link>
+        <p className="mono-label truncate normal-case tracking-normal text-tertiary">
+          {draft.account.domain}
+        </p>
+        <div className="mt-3">
+          <p className="truncate text-[13px] font-medium text-text">
+            {draft.contact?.name ?? "Unknown contact"}
+          </p>
+          <p className="truncate text-[12px] text-tertiary">{draft.contact?.title}</p>
+          <p className="mt-1 mono-label normal-case tracking-normal text-secondary">
+            {ROLE_LABEL[draft.contact?.role] ?? draft.persona}
+          </p>
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill status={draft.status} />
+          <span className={`mono-label normal-case tracking-normal ${confidence >= 75 ? "text-accent-soft" : "text-warn"}`}>
+            {confidence}% confidence
+          </span>
+          {blocked ? (
+            <span className="mono-label normal-case tracking-normal text-risk">QA blocked</span>
+          ) : null}
+          <span className="mono-label normal-case tracking-normal text-tertiary">
+            {timeAgo(draft._creationTime)}
+          </span>
+        </div>
+        {editId === draft._id ? (
+          <div className="mt-2 space-y-2">
+            <label className="block">
+              <span className="mono-label mb-1 block">Subject</span>
+              <input
+                value={edit.subject}
+                onChange={(event) => setEdit((current) => ({ ...current, subject: event.target.value }))}
+                className="h-9 w-full rounded border border-border bg-bg px-3 text-[12px] text-text outline-none focus:border-border-strong"
+              />
+            </label>
+            <label className="block">
+              <span className="mono-label mb-1 block">Body</span>
+              <textarea
+                value={edit.body}
+                onChange={(event) => setEdit((current) => ({ ...current, body: event.target.value }))}
+                rows={7}
+                className="w-full resize-y rounded border border-border bg-bg px-3 py-2 text-[12px] leading-relaxed text-text outline-none focus:border-border-strong"
+              />
+            </label>
+          </div>
+        ) : (
+          <>
+            <p className="mt-2 text-[13px] font-semibold text-text">{currentSubject}</p>
+            <p className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap border border-border bg-bg p-3 text-[12px] leading-relaxed text-secondary">
+              {currentBody}
+            </p>
+            <div className="mt-2 border border-border bg-transparent p-3">
+              <p className="mono-label">Why Quorum wrote this</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-secondary">
+                Signal: {draft.rationale?.signal ?? `${draft.account.companyName} has a mapped committee and needs persona-specific outreach.`}
+              </p>
+              <p className="mt-1 text-[12px] leading-relaxed text-tertiary">
+                Source: {draft.rationale?.source ?? "draft engine"} · Held for human approval before send.
+              </p>
+            </div>
+            {warnings.length ? (
+              <div className="mt-2 border border-risk/30 bg-transparent p-3">
+                <p className="mono-label text-risk">Draft QA</p>
+                <ul className="mt-1 space-y-1 text-[12px] leading-relaxed text-secondary">
+                  {warnings.map((warning) => (
+                    <li key={warning}>Fix: {warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col items-stretch justify-center gap-2">
+        {editId === draft._id ? (
+          <>
+            <button
+              type="button"
+              onClick={() => saveEdit(draft)}
+              disabled={working !== null}
+              className="btn-primary h-9 px-3 text-[12px]"
+            >
+              {working === `${draft._id}:save` ? "Saving…" : "Save edit"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditId(null)}
+              disabled={working !== null}
+              className="btn-secondary h-9 px-3 text-[12px]"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setEditId(draft._id);
+              setEdit({ subject: currentSubject, body: currentBody });
+            }}
+            disabled={working !== null}
+            className="btn-secondary h-9 px-3 text-[12px]"
+          >
+            Edit draft
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setStatus(draft._id, "approved")}
+          disabled={editId === draft._id || draft.status === "approved" || working !== null || blocked}
+          className="btn-primary h-9 px-3 text-[12px]"
+        >
+          {blocked ? "Fix QA first" : working === `${draft._id}:approved` ? "Approving…" : "Approve draft"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatus(draft._id, "skipped")}
+          disabled={editId === draft._id || draft.status === "skipped" || working !== null}
+          className="btn-secondary h-9 px-3 text-[12px]"
+        >
+          {working === `${draft._id}:skipped` ? "Skipping…" : "Skip draft"}
+        </button>
+        <Link
+          to={`/deal/${draft.account._id}`}
+          className="mono-label mt-1 text-center normal-case tracking-normal text-tertiary transition-colors hover:text-secondary"
+        >
+          Open account →
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function getDraftWarnings(subject: string, body: string): string[] {
+  const text = `${subject}\n${body}`;
+  const warnings: string[] = [];
+  if (/\[(your company|seller|company|recipient|name|title)[^\]]*\]/i.test(text)) {
+    warnings.push("remove unresolved placeholder text");
+  }
+  if (/\b(best|revolutionary|game-changing|cutting-edge|elevate|streamline)\b/i.test(text)) {
+    warnings.push("replace vague marketing language with a concrete buyer outcome");
+  }
+  if (!/\?/.test(body)) warnings.push("add one clear ask");
+  if (body.split(/\s+/).filter(Boolean).length > 130) warnings.push("shorten to under 130 words");
+  return warnings;
+}
+
+function inferDraftConfidence(draft: any, warnings: string[]) {
+  let score = 74;
+  if (draft.contact?.email) score += 5;
+  if (draft.contact?.role && draft.contact.role !== "unknown") score += 5;
+  if (draft.rationale?.signal) score += 6;
+  score -= warnings.length * 14;
+  return Math.max(28, Math.min(92, score));
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

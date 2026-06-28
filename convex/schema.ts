@@ -79,6 +79,11 @@ export default defineSchema({
     status: v.string(), // "pending" | "done" | "failed"
     label: v.string(),
     externalId: v.optional(v.string()),
+    system: v.optional(v.string()),
+    confidence: v.optional(v.number()),
+    risk: v.optional(v.string()),
+    requirements: v.optional(v.array(v.string())),
+    audit: v.optional(v.any()),
   }).index("by_account", ["accountId"]),
 
   drafts: defineTable({
@@ -88,5 +93,7 @@ export default defineSchema({
     body: v.string(),
     persona: v.string(),
     status: v.string(), // "draft" | "sent"
+    confidence: v.optional(v.number()),
+    rationale: v.optional(v.any()),
   }).index("by_account", ["accountId"]),
 });

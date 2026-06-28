@@ -25,7 +25,7 @@ export default function TopBar({
   ];
 
   return (
-    <header className="grid h-16 grid-cols-[minmax(180px,0.8fr)_minmax(150px,1fr)_auto] items-center gap-4 border-b border-border px-5">
+    <header className="grid min-h-16 grid-cols-1 items-start gap-2 border-b border-border bg-bg px-4 py-3 lg:grid-cols-[minmax(180px,0.8fr)_minmax(150px,1fr)_auto] lg:items-center lg:gap-4 lg:px-5 lg:py-0">
       <div className="flex min-w-0 items-center gap-3">
         <Logo url={account?.logoUrl} name={account?.companyName} domain={account?.domain} />
         <div className="min-w-0">
@@ -45,7 +45,7 @@ export default function TopBar({
         </div>
       </div>
 
-      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+      <div className="hidden min-w-0 flex-wrap items-center gap-1.5 overflow-hidden lg:flex">
         {visibleChips.slice(0, 5).map((chip, index) => {
           const isTech = index >= chips.length;
           return (
@@ -60,7 +60,7 @@ export default function TopBar({
         })}
       </div>
 
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
         {onRethread && (
           <button
             onClick={onRethread}
@@ -75,9 +75,9 @@ export default function TopBar({
             {rethreading ? "Threading…" : "New inbound"}
           </button>
         )}
-        <div className="flex h-9 shrink-0 items-center gap-1.5 border border-border px-2.5">
+        <div className="flex h-9 min-w-0 shrink items-center gap-1.5 border border-border px-2.5">
           <span className="h-1.5 w-1.5 animate-pulse bg-good" />
-          <span className="mono-label normal-case tracking-normal text-secondary">
+          <span className="mono-label truncate normal-case tracking-normal text-secondary">
             account brain live
           </span>
         </div>

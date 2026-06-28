@@ -10,7 +10,9 @@ import ActivityFeed from "../components/ActivityFeed";
 import CallPanel from "../components/CallPanel";
 import DealMap from "../components/DealMap";
 import ActionsRail from "../components/ActionsRail";
+import AccountBrainPanel from "../components/AccountBrainPanel";
 import { deriveProgress } from "../lib/stages";
+import { buildClientIntelligence } from "../lib/intelligence";
 
 type Action = "call" | "committee" | "outreach" | "actions";
 
@@ -47,6 +49,7 @@ export default function Dashboard() {
   const convo = data?.latestConversation;
   const drafts = data?.drafts ?? [];
   const actions = data?.actions ?? [];
+  const intelligence = data ? data.intelligence ?? buildClientIntelligence(data) : null;
   const actioned =
     account?.status === "actioned" || actions.some((a: any) => a.status === "done");
 
@@ -133,25 +136,28 @@ export default function Dashboard() {
       <NextMoveBar moves={account!.moves} />
       <main className="grid-lines grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[330px_minmax(0,1fr)_368px] xl:overflow-hidden">
         <ActivityFeed events={data.events} />
-        <CallPanel
-          conversation={convo}
-          transcript={data.transcript}
-          callState={callState}
-          sending={sending}
-          onStartCall={() => fire("call")}
-          onSend={async (text: string) => {
-            if (!convo) return;
-            setSending(true);
-            try {
-              await replyToCall({ conversationId: convo._id, text });
-            } finally {
-              setSending(false);
-            }
-          }}
-          onEndCall={async () => {
-            if (convo) await endCall({ conversationId: convo._id });
-          }}
-        />
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[auto_minmax(0,1fr)]">
+          <AccountBrainPanel intelligence={intelligence} />
+          <CallPanel
+            conversation={convo}
+            transcript={data.transcript}
+            callState={callState}
+            sending={sending}
+            onStartCall={() => fire("call")}
+            onSend={async (text: string) => {
+              if (!convo) return;
+              setSending(true);
+              try {
+                await replyToCall({ conversationId: convo._id, text });
+              } finally {
+                setSending(false);
+              }
+            }}
+            onEndCall={async () => {
+              if (convo) await endCall({ conversationId: convo._id });
+            }}
+          />
+        </div>
         <DealMap
           contacts={contacts}
           drafts={drafts}
