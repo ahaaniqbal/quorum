@@ -57,13 +57,13 @@ export default function Sidebar({ onAskQuorum }: { onAskQuorum?: () => void }) {
   return (
     <aside className="flex h-screen w-[236px] shrink-0 flex-col border-r border-border bg-[#0b0b0a]">
       {/* Brand */}
-      <div className="border-b border-border px-4 py-3">
+      <div className="flex h-12 items-center border-b border-border px-4">
         <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.28em] text-text">
           QUORUM
         </p>
       </div>
 
-      <div className="border-b border-border px-2 pb-1.5 pt-3">
+      <div className="border-b border-border px-2 py-2">
         <div className="flex h-8 items-center gap-2 border border-border bg-surface/50 px-2 text-secondary shadow-inner shadow-black/10">
           <Search size={13} strokeWidth={1.8} className="text-tertiary" />
           <span className="flex-1 text-[11px]">Quick find</span>
