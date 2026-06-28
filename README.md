@@ -1,10 +1,22 @@
 # Quorum
 
-**The autonomous AI account executive that works the entire buying committee, remembers every conversation, and acts across your stack.**
+**Every other AI sales tool talks to one lead and forgets the conversation by morning. Quorum works the entire buying committee, remembers every conversation, and takes real action across your stack — autonomously.**
 
-🔗 **Live:** https://quorum-runaegis-projects.vercel.app · **Repo:** https://github.com/ahaaniqbal/quorum
+🔗 **Live (one click, no signup):** https://quorum-runaegis-projects.vercel.app · **Repo:** https://github.com/ahaaniqbal/quorum
 
-Built for the AI Growth Hackathon (by Orange Slice). Sponsors used: **Convex** (backend, realtime, host), **Fiber AI** (enrichment), **Orange Slice** (LinkedIn enrichment), **OpenAI** (reasoning).
+> Open it and hit **"Try a sample company"** — Quorum enriches the account, shows the qualifying call, maps the full buying committee, drafts persona-tuned outreach to each member, and fires the cross-tool actions, end to end, with zero setup.
+
+Built for the AI Growth Hackathon (by Orange Slice). Sponsors used: **Convex** (backend, realtime, host), **Fiber AI** (enrichment + people search), **Orange Slice** (LinkedIn enrichment), **OpenAI** (qualification + outreach).
+
+### What makes it different
+- **Multi-threads the committee automatically** — the thing reps can't hold in their head.
+- **One compounding account brain** — it never forgets; a second contact from the same company threads into the same deal with full prior context.
+- **Acts** — real Slack / CRM / calendar actions, not just another inbox.
+
+### For reviewers
+- **No signup** — you land in a populated pipeline as a guest. Three example accounts are pre-loaded; the hero (Ramp) is fully worked so you can see the whole story immediately.
+- **The autopilot drives itself** — drop any work email and it runs enrich → committee → outreach → actions on its own. The live voice/chat call is an optional "Talk to the AI rep" action, not a gate.
+- **Robust by design** — personal emails, unknown companies, and malformed input all produce a clean result; every external call has an 8s timeout with graceful fallback.
 
 Every GTM tool today talks to one lead and forgets the conversation by morning. Quorum talks to the whole room and never forgets.
 
