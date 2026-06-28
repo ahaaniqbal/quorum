@@ -54,6 +54,16 @@ export default function AuthedApp() {
 
   return (
     <Routes>
+      <Route
+        path="/onboarding"
+        element={
+          <Onboarding
+            defaultName={me?.profile?.name ?? me?.user?.name ?? me?.user?.email?.split("@")[0] ?? undefined}
+            defaultEmail={me?.user?.email ?? undefined}
+            defaultProfile={me?.profile ?? undefined}
+          />
+        }
+      />
       <Route element={<AppShell />}>
         <Route path="/" element={<Home />} />
         <Route path="/pipeline" element={<Pipeline />} />

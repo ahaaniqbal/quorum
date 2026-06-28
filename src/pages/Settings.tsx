@@ -55,7 +55,7 @@ export default function Settings() {
 
   return (
     <div className="dot-grid flex-1 overflow-y-auto">
-      <header className="flex h-12 items-center justify-between border-b border-border px-5">
+      <header className="flex h-12 items-center justify-between border-b border-border bg-bg px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="mono-label shrink-0 text-tertiary">Settings</span>
           <span className="h-4 w-px bg-border" />

@@ -136,9 +136,9 @@ export default function Sidebar({ onAskQuorum }: { onAskQuorum?: () => void }) {
       <div className="border-t border-border p-2">
         <button
           onClick={onAskQuorum}
-          className="mb-2 flex w-full items-center gap-2 border border-accent/30 bg-accent/10 px-2 py-2 text-left transition-colors hover:border-accent/50 hover:bg-accent/15"
+          className="mb-2 flex w-full items-center gap-2 border border-[#7a2d0d] bg-surface/50 px-2 py-2 text-left transition-colors hover:border-accent hover:bg-surface"
         >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-accent/30 bg-accent/15 text-accent-soft">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-accent-subtle bg-transparent text-accent-soft">
             <Sparkles size={13} strokeWidth={2} />
           </span>
           <span className="min-w-0 flex-1">
@@ -156,7 +156,7 @@ export default function Sidebar({ onAskQuorum }: { onAskQuorum?: () => void }) {
           onClick={() => navigate("/setup")}
           className="mb-2 flex w-full items-center gap-2 border border-border bg-surface/50 px-2 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface"
         >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-accent/30 bg-accent/15 text-accent-soft">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-accent-subtle bg-transparent text-accent-soft">
             <Rocket size={13} strokeWidth={2} />
           </span>
           <span className="min-w-0 flex-1">

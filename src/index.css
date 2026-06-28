@@ -116,6 +116,9 @@ textarea:focus-visible {
   .border-accent\/40 {
     border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
   }
+  .border-accent-subtle {
+    border-color: color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.08)) !important;
+  }
   .fill-accent-soft {
     fill: #fdba74 !important;
   }

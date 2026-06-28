@@ -29,6 +29,25 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "demo", label: "Demo data" },
 ];
 
+const FLOW_STEPS = [
+  {
+    label: "Add leads",
+    detail: "Paste emails, upload CSV, or connect the webhook.",
+  },
+  {
+    label: "Account brain runs",
+    detail: "Quorum enriches the company and maps the buying committee.",
+  },
+  {
+    label: "Review gate",
+    detail: "You approve drafts and risky actions before they go out.",
+  },
+  {
+    label: "Actions land",
+    detail: "Approved work becomes CRM notes, emails, meetings, and alerts.",
+  },
+];
+
 function parseEmails(text: string): { valid: string[]; skipped: number } {
   const all = text.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
   const seen = new Set<string>();
@@ -183,7 +202,7 @@ export default function Pipeline() {
   return (
     <div className="dot-grid flex-1 overflow-y-auto">
       {/* Page header */}
-      <header className="flex h-12 items-center justify-between border-b border-border px-5">
+      <header className="flex h-12 items-center justify-between border-b border-border bg-bg px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="mono-label shrink-0 text-tertiary">Pipeline</span>
           <span className="h-4 w-px bg-border" />
@@ -226,6 +245,33 @@ export default function Pipeline() {
               Quorum works every lead automatically. Paste a batch, connect a source, or take one
               by hand.
             </span>
+          </div>
+          <div className="mb-4 grid gap-2 lg:grid-cols-4">
+            {FLOW_STEPS.map((step, index) => (
+              <PipelineStep
+                key={step.label}
+                index={index + 1}
+                label={step.label}
+                detail={step.detail}
+                status={
+                  index === 0
+                    ? webhookUrl
+                      ? "live source"
+                      : "manual source"
+                    : index === 1
+                      ? `${pipeline.length} active`
+                      : index === 2
+                        ? `${reviewReady} ready`
+                        : `${worked} worked`
+                }
+                active={
+                  index === 0 ||
+                  (index === 1 && pipeline.length > 0) ||
+                  (index === 2 && reviewReady > 0) ||
+                  (index === 3 && worked > 0)
+                }
+              />
+            ))}
           </div>
           <form onSubmit={onRun} noValidate>
             {/* Email-pill input: paste/type many, remove any with × */}
@@ -389,7 +435,7 @@ export default function Pipeline() {
                 aria-pressed={active}
                 className={`rounded border px-2.5 py-1.5 font-mono text-[11px] transition-colors duration-150 ${
                   active
-                    ? "border-accent/40 bg-accent/15 text-accent-soft"
+                    ? "border-[#7a2d0d] bg-transparent text-accent-soft"
                     : "border-border bg-surface text-secondary hover:border-border-strong hover:text-text"
                 }`}
               >
@@ -498,6 +544,44 @@ function nextReview(account: any): string {
   if (account.stage === "outreach") return "Review drafted outreach before sending.";
   if (account.stage === "committee") return "Check committee coverage and next move.";
   return account.lastLabel ?? "Confirm enrichment before autopilot continues.";
+}
+
+function PipelineStep({
+  index,
+  label,
+  detail,
+  status,
+  active,
+}: {
+  index: number;
+  label: string;
+  detail: string;
+  status: string;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`relative border bg-surface p-3 ${
+        active ? "border-border-strong" : "border-border"
+      }`}
+    >
+      {active && (
+        <span className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,var(--accent),#7a2d0d,#2a211b)]" />
+      )}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span
+          className={`mono-label tnum flex h-6 w-6 items-center justify-center border bg-transparent ${
+            active ? "border-accent-subtle text-accent-soft" : "border-border text-tertiary"
+          }`}
+        >
+          0{index}
+        </span>
+        <span className="mono-label normal-case tracking-normal text-tertiary">{status}</span>
+      </div>
+      <p className="text-[12px] font-semibold text-text">{label}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-tertiary">{detail}</p>
+    </div>
+  );
 }
 
 function Metric({
