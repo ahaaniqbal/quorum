@@ -80,7 +80,7 @@ export const fireActions = mutation({
       {
         type: "email",
         system: "AgentMail",
-        label: `Outreach sent to ${committeeCount} committee members`,
+        label: `Outreach to ${committeeCount} committee members`,
         confidence: 76,
         risk: "high",
         requirements: ["Approved drafts", "AgentMail API key", "Recipient email addresses"],
@@ -192,22 +192,30 @@ export const complete = internalAction({
         company: account?.companyName,
       });
     } else if (type === "calendar") {
+      // SAFETY: the auto-fired loop must NEVER invite the real prospect. Create the
+      // pilot slot as a private placeholder on the seller's own calendar — no
+      // attendees and notifications OFF — so no invite ever reaches the prospect.
+      // The real invite only goes out after a human approves it.
       result = await execComposio("GOOGLECALENDAR_CREATE_EVENT", {
         summary: `Quorum pilot: ${account?.companyName}`,
-        description: `Qualification follow-up with ${primary?.name ?? "the prospect"}.`,
-        attendees: primary?.email ? [primary.email] : [],
+        description: `Qualification follow-up with ${primary?.name ?? "the prospect"}. (Placeholder — confirm and invite after review.)`,
+        send_updates: false,
         // Google requires a start; book the next Thursday 11:00 (matches the action label).
         start_datetime: nextThursdayAt11(),
         event_duration_minutes: 30,
         timezone: "America/Los_Angeles",
       });
     } else if (type === "email") {
-      const sent = await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
+      // SAFETY: in safe mode (default), never email a real prospect — outreach is
+      // prepared and held, not sent. Disable per-workspace for live customers.
+      const sent = safeMode() ? 0 : await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
       result = sent > 0 ? { ok: true, id: `sent:${sent}` } : { ok: false };
     }
 
     const status = result.ok ? "done" : "skipped";
-    const finalLabel = result.ok ? label : `${label} · connect to enable`;
+    const blockedSuffix =
+      type === "email" && safeMode() ? "held in safe mode" : "connect to enable";
+    const finalLabel = result.ok ? label : `${label} · ${blockedSuffix}`;
     await ctx.runMutation(internal.closeLoop.markDone, {
       accountId,
       type,
@@ -263,8 +271,19 @@ function systemName(type: string): string {
   return type;
 }
 
+// Safe mode (ON by default) guarantees Quorum never emails or invites a real
+// prospect from the autopilot — outreach is prepared and held instead of sent.
+// Set QUORUM_SAFE_MODE="off" per workspace to enable real prospect sends.
+function safeMode(): boolean {
+  const v = (process.env.QUORUM_SAFE_MODE ?? "on").toLowerCase();
+  return v !== "off" && v !== "0" && v !== "false" && v !== "no";
+}
+
 function missingRequirement(type: string): string {
-  if (type === "email") return "AgentMail is not connected or no approved drafts were available.";
+  if (type === "email")
+    return safeMode()
+      ? "Safe mode is on: outreach was prepared and held, not sent to real recipients."
+      : "AgentMail is not connected or no approved drafts were available.";
   if (type === "hubspot") return "HubSpot is not connected through Composio.";
   if (type === "calendar") return "Google Calendar is not connected through Composio.";
   if (type === "slack") return "Slack is not connected through Composio.";
