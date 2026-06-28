@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import { Avatar } from "./Avatar";
 
 type Stakeholder = {
@@ -141,7 +142,7 @@ export default function CommitteeGraph({
       <button
         key={`${slot.id}-${stakeholderKey(stakeholder)}`}
         onClick={() => onSelect(stakeholder.email ?? undefined)}
-        className={`group relative flex h-full w-full min-w-0 flex-col justify-between border bg-surface/95 p-2 text-left shadow-cell transition-all duration-fast ease-vercel hover:border-border-strong hover:bg-surface2 hover:brightness-110 ${
+        className={`group relative flex h-full w-full min-w-0 flex-col justify-between border bg-surface/95 p-2.5 text-left shadow-cell transition-all duration-fast ease-vercel hover:border-border-strong hover:bg-surface2 hover:brightness-110 ${
           selected ? "border-accent/40" : "border-border"
         }`}
         title={stakeholder.rationale}
@@ -155,16 +156,16 @@ export default function CommitteeGraph({
                 : "rgba(255,255,255,0.16)",
           }}
         />
-        <div className="flex items-center gap-2 pl-1.5">
+        <div className="flex items-center gap-2.5 pl-1.5">
           <Avatar
             photoUrl={avatarFor(stakeholder)}
             email={stakeholder.email}
             name={stakeholder.name}
-            size={28}
+            size={34}
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-semibold text-text">{stakeholder.name}</p>
-            <p className="truncate text-[10px] text-tertiary">{stakeholder.title ?? slot.label}</p>
+            <p className="truncate text-[13px] font-semibold text-text">{stakeholder.name}</p>
+            <p className="truncate text-[11px] text-tertiary">{stakeholder.title ?? slot.label}</p>
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between gap-2 pl-1.5">
@@ -192,10 +193,10 @@ export default function CommitteeGraph({
   const slotById = (id: string) => slots.find((slot) => slot.id === id);
 
   return (
-    <div className="relative overflow-hidden border border-border bg-bg" style={{ height: 320 }}>
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-border bg-bg/90 px-3 py-2">
+    <div className="relative h-full min-h-[320px] w-full overflow-hidden border border-border bg-bg">
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b border-border bg-bg/90 px-4 py-2.5">
         <div>
-          <p className="mono-label">Committee map</p>
+          <p className="mono-label text-secondary">Committee map</p>
           <p className="text-[11px] text-tertiary">Verified people only, gaps stay unnamed.</p>
         </div>
         <span className="mono-label tnum text-tertiary">{String(stakeholders.length).padStart(2, "0")} mapped</span>
@@ -214,15 +215,15 @@ export default function CommitteeGraph({
         <path d="M 25 73 C 39 73, 39 54, 50 54 C 61 54, 62 73, 75 73" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="0.45" strokeDasharray="1.5 1.5" />
       </svg>
 
-      <div className="absolute inset-x-3 bottom-12 top-[58px] z-20 grid grid-cols-[minmax(0,1fr)_92px_minmax(0,1fr)] grid-rows-2 gap-2">
+      <div className="absolute inset-x-3 bottom-14 top-[64px] z-20 grid grid-cols-2 grid-rows-2 gap-2 sm:inset-x-4 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)] sm:gap-3">
         <div className="min-w-0">{slotById("champion") && renderCard(slotById("champion")!)}</div>
-        <div className="row-span-2 flex items-center justify-center">
-          <div
-            className="flex h-16 w-[92px] flex-col items-center justify-center border border-border bg-surface/95 text-center shadow-cell"
-            style={{ marginTop: -6 }}
-          >
-            <span className="mono-label text-accent-soft">Quorum path</span>
-            <span className="mt-1 text-[10px] leading-tight text-secondary">next best route</span>
+        <div className="row-span-2 hidden items-center justify-center sm:flex">
+          <div className="flex h-24 w-[120px] flex-col items-center justify-center border border-accent/30 bg-surface/95 text-center shadow-cell">
+            <span className="flex h-7 w-7 items-center justify-center border border-accent/40 text-accent-soft">
+              <ArrowRight size={15} strokeWidth={2.2} />
+            </span>
+            <span className="mono-label mt-2 text-accent-soft">Quorum path</span>
+            <span className="mt-0.5 text-[10px] leading-tight text-tertiary">next best route</span>
           </div>
         </div>
         <div className="min-w-0">{slotById("buyer") && renderCard(slotById("buyer")!)}</div>

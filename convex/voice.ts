@@ -1,5 +1,5 @@
 import { action, mutation, query } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { openaiChat, type ChatMessage } from "./lib/openai";
 import { voiceRepPrompt } from "./lib/prompts";
@@ -158,6 +158,13 @@ export const startCall = action({
     const cc: any = await ctx.runQuery(api.voice.getContactContext, { contactId });
     if (!cc?.contact || !cc?.account) throw new Error("Contact not found");
     const { contact, account } = cc;
+    const access: any = await ctx.runQuery(internal.authz.assertAccountAccess, { accountId: account._id });
+    const runId: string = await ctx.runMutation(internal.agentTrace.startRun, {
+      accountId: account._id,
+      userId: access.userId ?? undefined,
+      trigger: "manual",
+      goal: `Open an AI qualification call with ${contact.name} at ${account.companyName}`,
+    });
 
     const conversationId: string = await ctx.runMutation(api.voice.createConvo, {
       accountId: account._id,
@@ -186,6 +193,22 @@ export const startCall = action({
       accountId: account._id,
       role: "rep",
       text: opening,
+    });
+    await ctx.runMutation(internal.agentTrace.recordStep, {
+      runId: runId as any,
+      accountId: account._id,
+      agent: "brain",
+      type: "tool_call",
+      status: "completed",
+      label: "AI rep opened qualification call",
+      detail: "Quorum generated a context-aware opening using account enrichment, seller profile, and prior committee memory.",
+      tool: process.env.OPENAI_API_KEY ? "OpenAI voice rep" : "fallback voice script",
+      output: { conversationId, contact: contact.name, priorContext: Boolean(prior) },
+    });
+    await ctx.runMutation(internal.agentTrace.completeRun, {
+      runId: runId as any,
+      status: "completed",
+      summary: `Opened AI qualification call with ${contact.name} and wrote the first rep turn.`,
     });
     return conversationId;
   },
@@ -282,6 +305,32 @@ export const endCall = action({
       contactId: c.conversation.contactId,
       qualification,
       summary,
+    });
+    const runId: string = await ctx.runMutation(internal.agentTrace.startRun, {
+      accountId: account._id,
+      userId: account.userId,
+      trigger: "manual",
+      goal: `Analyze qualification call and update ${account.companyName}'s account brain`,
+    });
+    await ctx.runMutation(internal.agentTrace.recordStep, {
+      runId: runId as any,
+      accountId: account._id,
+      agent: "brain",
+      type: "reasoning",
+      status: "completed",
+      label: "Qualification call analyzed",
+      detail: summary,
+      tool: process.env.OPENAI_API_KEY ? "OpenAI call analyst" : "heuristic call analyst",
+      output: {
+        score: qualification?.score,
+        booked: Boolean(qualification?.booked),
+        conversationId,
+      },
+    });
+    await ctx.runMutation(internal.agentTrace.completeRun, {
+      runId: runId as any,
+      status: "completed",
+      summary: `Analyzed call, scored ${qualification?.score ?? "n/a"}/100, and queued account brain synthesis.`,
     });
 
     // Thicken the deal brain from this conversation: memory → committee → moves.

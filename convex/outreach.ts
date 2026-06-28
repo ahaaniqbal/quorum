@@ -1,4 +1,4 @@
-import { action, mutation } from "./_generated/server";
+import { action, mutation, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
@@ -98,6 +98,62 @@ async function openAIDraft(
 }
 
 export const generateOutreach = action({
+  args: { accountId: v.id("accounts") },
+  handler: async (ctx, { accountId }): Promise<number> => {
+    const access: any = await ctx.runQuery(internal.authz.assertAccountAccess, { accountId });
+    const runId: string = await ctx.runMutation(internal.agentTrace.startRun, {
+      accountId,
+      userId: access.userId ?? undefined,
+      trigger: "manual",
+      goal: `Draft review-gated outreach for ${access.account.companyName}`,
+    });
+    try {
+      const drafted = await ctx.runAction(internal.outreach.generateOutreachAutonomous, { accountId });
+      await ctx.runMutation(internal.agentTrace.recordStep, {
+        runId: runId as any,
+        accountId,
+        agent: "outreach",
+        type: "draft",
+        status: drafted > 0 ? "completed" : "blocked",
+        label: drafted > 0 ? "Outreach drafts generated" : "Outreach paused",
+        detail:
+          drafted > 0
+            ? "Quorum generated persona-tuned drafts and held them for human review before send."
+            : "Quorum did not draft because no verified committee members were available.",
+        tool: process.env.OPENAI_API_KEY ? "OpenAI draft agent" : "deterministic draft agent",
+        output: { drafted, reviewGate: true },
+      });
+      await ctx.runMutation(internal.agentTrace.completeRun, {
+        runId: runId as any,
+        status: drafted > 0 ? "completed" : "blocked",
+        summary:
+          drafted > 0
+            ? `Generated ${drafted} review-gated draft${drafted === 1 ? "" : "s"} for ${access.account.companyName}.`
+            : `Paused outreach for ${access.account.companyName}; no verified committee members were safe to contact.`,
+      });
+      return drafted;
+    } catch (error: any) {
+      await ctx.runMutation(internal.agentTrace.recordStep, {
+        runId: runId as any,
+        accountId,
+        agent: "outreach",
+        type: "draft",
+        status: "failed",
+        label: "Outreach generation failed",
+        detail: error?.message ?? "Unknown outreach generation error.",
+        error: error?.message ?? "Unknown error",
+      });
+      await ctx.runMutation(internal.agentTrace.completeRun, {
+        runId: runId as any,
+        status: "failed",
+        summary: `Outreach generation failed for ${access.account.companyName}.`,
+      });
+      throw error;
+    }
+  },
+});
+
+export const generateOutreachAutonomous = internalAction({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<number> => {
     // Unguarded load (see committee.mapCommittee) so autonomous ingestion can

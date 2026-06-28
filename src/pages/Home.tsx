@@ -177,8 +177,8 @@ export default function Home() {
           <span className="plus plus-tr" />
           <span className="plus plus-bl" />
           <span className="plus plus-br" />
-          <div className="grid gap-0 lg:grid-cols-[1fr_360px]">
-            <div className="p-5">
+          <div className="grid grid-cols-1 gap-0 lg:grid-cols-[1fr_360px]">
+            <div className="min-w-0 p-5">
               <p className="mono-label">Operating loop</p>
               <h2 className="mt-2 max-w-2xl text-[24px] font-semibold leading-tight tracking-tight text-text">
                 Quorum works accounts until a human decision is needed.
@@ -187,7 +187,7 @@ export default function Home() {
                 The product is simple on purpose: feed Quorum leads, let the account brain run,
                 review customer-facing work, then watch approved actions land in your systems.
               </p>
-              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {LOOP_STEPS.map((step, index) => (
                   <LoopStep key={step.label} step={step} index={index + 1} />
                 ))}
@@ -257,7 +257,7 @@ export default function Home() {
               tune controls →
             </Link>
           </div>
-          <div className="grid gap-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
             <CadenceCard
               icon={AlertTriangle}
               label="Watch now"
@@ -284,7 +284,7 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_390px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_390px]">
           <section className="cell p-4">
             <span className="plus plus-tl" />
             <span className="plus plus-tr" />
@@ -368,7 +368,7 @@ export default function Home() {
           </section>
         </div>
 
-        <section className="mt-4 grid gap-4 lg:grid-cols-3">
+        <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <QuickLink
             icon={Inbox}
             label="Work inbound"

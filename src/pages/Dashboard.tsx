@@ -4,16 +4,13 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import {
   AlertTriangle,
   ArrowRight,
-  Bot,
   Check,
   CheckCircle2,
   CircleDot,
   Clock3,
   Pause,
   Play,
-  ShieldCheck,
   Sparkles,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "../../convex/_generated/api";
@@ -24,6 +21,7 @@ import CallPanel from "../components/CallPanel";
 import DealMap from "../components/DealMap";
 import ActionsRail from "../components/ActionsRail";
 import AccountBrainPanel from "../components/AccountBrainPanel";
+import AgentReceiptsPanel from "../components/AgentReceiptsPanel";
 import { deriveProgress, STAGES } from "../lib/stages";
 import { buildClientIntelligence } from "../lib/intelligence";
 
@@ -122,6 +120,13 @@ export default function Dashboard() {
           ? "Close loop"
           : null;
 
+  const pendingDrafts = drafts.filter((d: any) => d.status === "draft").length;
+  const actionIssues = actions.filter((a: any) =>
+    ["pending", "failed", "skipped"].includes(a.status)
+  ).length;
+  const pendingReview = pendingDrafts + actionIssues;
+  const score = intelligence?.score ?? 0;
+
   const onRethread = async () => {
     setRethreading(true);
     try {
@@ -137,124 +142,123 @@ export default function Dashboard() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="h-[2px] w-full" style={{ background: "var(--brand)" }} />
       <TopBar account={account} onRethread={onRethread} rethreading={rethreading} />
-      <main className="min-h-0 flex-1 overflow-y-auto bg-bg">
-        <div className="mx-auto max-w-[1480px] px-3 py-3 sm:px-4 sm:py-4">
-          <DealCommandHeader
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[1480px] space-y-4 px-3 py-3 sm:px-4 sm:py-4">
+          {/* ZONE A — State: what happened, at a glance */}
+          <Masthead
             account={account}
-            intelligence={intelligence}
+            score={score}
+            grade={intelligence?.grade}
             reached={reached}
+            done={done}
+            callLive={callLive}
+            pendingReview={pendingReview}
+            committeeCount={contacts.length}
+          />
+
+          {/* ZONE B — Decision: the one move + your call */}
+          <DecisionHero
+            account={account}
+            moves={account!.moves}
             callLive={callLive}
             done={done}
             autopilot={autopilot}
-            nextLabel={nextLabel}
             nextAction={nextAction}
-            pendingDrafts={drafts.filter((draft: any) => draft.status === "draft").length}
-            actionIssues={actions.filter((action: any) => ["pending", "failed", "skipped"].includes(action.status)).length}
-            onToggleAutopilot={() => setAutopilot((current) => !current)}
+            nextLabel={nextLabel}
+            pendingReview={pendingReview}
             onRunNext={() => fire(nextAction)}
+            onToggleAutopilot={() => setAutopilot((c) => !c)}
           />
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]">
-            <div className="min-w-0 space-y-4">
-              <DecisionPanel
-                account={account}
-                moves={account!.moves}
-                callLive={callLive}
-                nextLabel={nextLabel}
-                nextAction={nextAction}
-                actioned={actioned}
-                onRunNext={() => fire(nextAction)}
-              />
-              <AccountBrainPanel intelligence={intelligence} />
-              <CallPanel
-                conversation={convo}
-                transcript={data.transcript}
-                callState={callState}
-                sending={sending}
-                onStartCall={() => fire("call")}
-                onSend={async (text: string) => {
-                  if (!convo) return;
-                  setSending(true);
-                  try {
-                    await replyToCall({ conversationId: convo._id, text });
-                  } finally {
-                    setSending(false);
-                  }
-                }}
-                onEndCall={async () => {
-                  if (convo) await endCall({ conversationId: convo._id });
-                }}
-              />
-            </div>
+          <AgentReceiptsPanel
+            agentRuns={data.agentRuns ?? []}
+            events={data.events ?? []}
+            actions={actions}
+            drafts={drafts}
+            account={account}
+          />
 
-            <aside className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:self-start">
-              <DealMap
-                contacts={contacts}
-                drafts={drafts}
-                graph={account!.graph}
-                moves={account!.moves}
-                onMapCommittee={() => fire("committee")}
-                mapping={runningRef.current === "committee" && committeeCount === 0}
-              />
-              <ActivityFeed events={data.events.slice(0, 8)} />
-            </aside>
+          {/* ZONE C — Evidence: the dossier behind the recommendation.
+              The committee relationship map is the signature artifact of the deal
+              brain, so it leads full-width; the brain + activity sit below it. */}
+          <DealMap
+            contacts={contacts}
+            drafts={drafts}
+            graph={account!.graph}
+            moves={account!.moves}
+            onMapCommittee={() => fire("committee")}
+            mapping={runningRef.current === "committee" && committeeCount === 0}
+          />
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <AccountBrainPanel intelligence={intelligence} />
+            <ActivityFeed events={data.events.slice(0, 7)} />
           </div>
 
-          <div className="mt-4">
-            <ActionsRail
-              actions={actions}
-              onFire={async () => {
-                await fire("outreach");
-                runningRef.current = null;
-                await fire("actions");
-              }}
-              firing={runningRef.current === "actions" && !actioned}
-            />
-          </div>
+          <CallPanel
+            conversation={convo}
+            transcript={data.transcript}
+            callState={callState}
+            sending={sending}
+            onStartCall={() => fire("call")}
+            onSend={async (text: string) => {
+              if (!convo) return;
+              setSending(true);
+              try {
+                await replyToCall({ conversationId: convo._id, text });
+              } finally {
+                setSending(false);
+              }
+            }}
+            onEndCall={async () => {
+              if (convo) await endCall({ conversationId: convo._id });
+            }}
+          />
+
+          <ActionsRail
+            actions={actions}
+            onFire={async () => {
+              await fire("outreach");
+              runningRef.current = null;
+              await fire("actions");
+            }}
+            firing={runningRef.current === "actions" && !actioned}
+          />
         </div>
       </main>
     </div>
   );
 }
 
-function DealCommandHeader({
+// ── Zone A: Masthead ─────────────────────────────────────────────────────────
+// One compact strip: account state line + inline stage rail + key metrics.
+// Replaces the old oversized headline + explainer paragraph + 4 boxed cards.
+
+function Masthead({
   account,
-  intelligence,
+  score,
+  grade,
   reached,
-  callLive,
   done,
-  autopilot,
-  nextLabel,
-  nextAction,
-  pendingDrafts,
-  actionIssues,
-  onToggleAutopilot,
-  onRunNext,
+  callLive,
+  pendingReview,
+  committeeCount,
 }: {
   account: any;
-  intelligence: any;
+  score: number;
+  grade?: string;
   reached: number;
-  callLive: boolean;
   done: boolean;
-  autopilot: boolean;
-  nextLabel: string | null;
-  nextAction: Action | null;
-  pendingDrafts: number;
-  actionIssues: number;
-  onToggleAutopilot: () => void;
-  onRunNext: () => void;
+  callLive: boolean;
+  pendingReview: number;
+  committeeCount: number;
 }) {
-  const score = intelligence?.score ?? 0;
-  const decision = getDecisionCopy({
-    account,
-    callLive,
-    done,
-    nextLabel,
-    pendingDrafts,
-    actionIssues,
-  });
-  const DecisionIcon = decision.icon;
-  const activeStageIndex = done ? STAGES.length - 1 : Math.min(STAGES.length - 1, reached + 1);
+  const stateLine = callLive
+    ? "Live qualification call in progress"
+    : done
+      ? "Fully worked. Holding for your review."
+      : "Working the account autonomously.";
+  const scoreTone = score >= 82 ? "good" : score >= 65 ? "warn" : "risk";
 
   return (
     <section className="cell overflow-hidden bg-[#0d0d0c]">
@@ -262,151 +266,224 @@ function DealCommandHeader({
       <span className="plus plus-tr" />
       <span className="plus plus-bl" />
       <span className="plus plus-br" />
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_390px]">
-        <div className="p-4 sm:p-5">
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
             <span className="mono-label text-accent-soft">Account command center</span>
-            <span className="mono-label text-tertiary">One screen, one decision</span>
           </div>
-          <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-balance text-[26px] font-semibold leading-tight tracking-tight text-text sm:text-[34px]">
-                {done ? `${account.companyName} is fully worked.` : `Quorum is working ${account.companyName}.`}
-              </h1>
-              <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-secondary sm:text-[14px]">
-                Quorum has one job here: understand the account, hold customer-facing decisions for review,
-                and close the loop only when the evidence is good enough.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <SignalPill label="Brain confidence" value={`${score}%`} tone={score >= 82 ? "good" : score >= 65 ? "warn" : "risk"} />
-              <SignalPill label="Review" value={`${pendingDrafts + actionIssues}`} tone={pendingDrafts + actionIssues ? "warn" : "good"} />
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-2 sm:grid-cols-4">
-            {STAGES.map((stage, index) => {
-              const isDone = done || index <= reached;
-              const isActive = !done && index === activeStageIndex;
-              return (
-                <div
-                  key={stage.key}
-                  className={`border px-3 py-3 ${
-                    isActive
-                      ? "border-accent/40 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
-                      : isDone
-                        ? "border-good/25 bg-transparent"
-                        : "border-border bg-transparent"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={isDone ? "text-good" : isActive ? "text-accent-soft" : "text-tertiary"}>
-                      {isDone ? <Check size={15} strokeWidth={2.2} /> : <CircleDot size={15} strokeWidth={2.2} />}
-                    </span>
-                    <span className="mono-label tnum text-tertiary">0{index + 1}</span>
-                  </div>
-                  <p className="mt-3 text-[12px] font-semibold text-text">{stage.label}</p>
-                </div>
-              );
-            })}
-          </div>
+          <h1 className="mt-2 text-balance text-[22px] font-semibold leading-tight tracking-tight text-text sm:text-[26px]">
+            {account.companyName}
+          </h1>
+          <p className="mt-1 flex items-center gap-2 text-[13px] text-secondary">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 ${
+                callLive ? "animate-pulse bg-warn" : done ? "bg-good" : "bg-accent"
+              }`}
+            />
+            {stateLine}
+          </p>
         </div>
 
-        <div className="border-t border-border p-4 sm:p-5 lg:border-l lg:border-t-0">
-          <div className="flex items-center gap-2">
-            <DecisionIcon size={16} strokeWidth={2.1} className={decision.toneClass} />
-            <p className="mono-label">Next human decision</p>
-          </div>
-          <h2 className="mt-3 text-balance text-[19px] font-semibold leading-tight text-text">
-            {decision.title}
-          </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-secondary">{decision.body}</p>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row lg:flex-col">
-            {nextAction && !callLive && (
-              <button onClick={onRunNext} className="btn-primary h-10 flex-1 px-4">
-                Run {nextLabel}
-                <ArrowRight size={15} strokeWidth={2.2} />
-              </button>
-            )}
-            <button onClick={onToggleAutopilot} className="btn-secondary h-10 flex-1 px-4">
-              {autopilot ? <Pause size={14} strokeWidth={2.2} /> : <Play size={14} strokeWidth={2.2} />}
-              {autopilot ? "Pause autopilot" : "Resume autopilot"}
-            </button>
-            {(pendingDrafts > 0 || actionIssues > 0) && (
-              <Link to="/review" className="btn-secondary h-10 flex-1 px-4">
-                Open review gate
-              </Link>
-            )}
-          </div>
+        <div className="flex shrink-0 flex-wrap items-stretch gap-2">
+          <Metric label="Brain confidence" value={`${score}%`} sub={grade} tone={scoreTone} bar={score} />
+          <Metric
+            label="Needs review"
+            value={String(pendingReview)}
+            sub={pendingReview ? "to approve" : "all clear"}
+            tone={pendingReview ? "warn" : "good"}
+          />
+          <Metric label="Committee" value={String(committeeCount)} sub="stakeholders" tone="neutral" />
         </div>
       </div>
+
+      <StageRail reached={reached} done={done} />
     </section>
   );
 }
 
-function DecisionPanel({
+function Metric({
+  label,
+  value,
+  sub,
+  tone,
+  bar,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone: "good" | "warn" | "risk" | "neutral";
+  bar?: number;
+}) {
+  const toneClass =
+    tone === "good"
+      ? "text-good"
+      : tone === "warn"
+        ? "text-warn"
+        : tone === "risk"
+          ? "text-risk"
+          : "text-text";
+  return (
+    <div className="min-w-[124px] border border-border bg-surface px-3 py-2.5">
+      <p className="mono-label normal-case tracking-normal text-tertiary">{label}</p>
+      <p className={`mt-1 font-mono text-[20px] font-semibold leading-none tnum ${toneClass}`}>
+        {value}
+      </p>
+      {bar !== undefined ? (
+        <div className="mt-2 h-1 border border-border bg-bg">
+          <div
+            className="h-full bg-accent transition-all duration-300"
+            style={{ width: `${Math.max(4, Math.min(100, bar))}%` }}
+          />
+        </div>
+      ) : sub ? (
+        <p className="mono-label mt-1.5 normal-case tracking-normal text-tertiary">{sub}</p>
+      ) : null}
+    </div>
+  );
+}
+
+// The 4-step spine as a thin inline rail (not four boxed cards).
+function StageRail({ reached, done }: { reached: number; done: boolean }) {
+  const fill = done ? 100 : (Math.min(reached, STAGES.length - 1) / (STAGES.length - 1)) * 100;
+  return (
+    <div className="border-t border-border px-4 py-3 sm:px-5">
+      <div className="flex items-center justify-between gap-2">
+        {STAGES.map((stage, i) => {
+          const isDone = done || i <= reached;
+          const isActive = !done && i === Math.min(STAGES.length - 1, reached + 1);
+          return (
+            <div key={stage.key} className="flex min-w-0 items-center gap-1.5">
+              <span
+                className={
+                  isDone ? "text-good" : isActive ? "text-accent" : "text-tertiary"
+                }
+              >
+                {isDone ? (
+                  <Check size={13} strokeWidth={2.4} />
+                ) : (
+                  <CircleDot size={13} strokeWidth={2.2} />
+                )}
+              </span>
+              <span
+                className={`mono-label normal-case tracking-normal ${
+                  isDone ? "text-secondary" : isActive ? "text-accent-soft" : "text-tertiary"
+                }`}
+              >
+                {stage.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2.5 h-[2px] w-full bg-border">
+        <div
+          className="h-full bg-accent transition-all duration-500"
+          style={{ width: `${Math.max(6, fill)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Zone B: Decision hero ────────────────────────────────────────────────────
+// One block, two roles. Left: the recommended move (strategy — who & what).
+// Right: your call (the immediate gate — approve / run / reply), one primary CTA.
+
+function DecisionHero({
   account,
   moves,
   callLive,
-  nextLabel,
+  done,
+  autopilot,
   nextAction,
-  actioned,
+  nextLabel,
+  pendingReview,
   onRunNext,
+  onToggleAutopilot,
 }: {
   account: any;
   moves: any;
   callLive: boolean;
-  nextLabel: string | null;
+  done: boolean;
+  autopilot: boolean;
   nextAction: Action | null;
-  actioned: boolean;
+  nextLabel: string | null;
+  pendingReview: number;
   onRunNext: () => void;
+  onToggleAutopilot: () => void;
 }) {
   const topMove = moves?.top_move;
   const urgency = topMove?.urgency ? String(topMove.urgency).replace(/_/g, " ") : "today";
+  const moveText =
+    topMove?.action ??
+    (done ? "Monitor replies and keep destinations healthy." : "Let Quorum keep working the account loop.");
+  const decision = getDecision({ account, callLive, done, nextLabel, pendingReview });
+  const DecisionIcon = decision.icon;
+
   return (
     <section className="cell overflow-hidden">
       <span className="plus plus-tl" />
       <span className="plus plus-tr" />
       <span className="plus plus-bl" />
       <span className="plus plus-br" />
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="p-4 sm:p-5">
+      <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_372px]">
+        {/* The recommended move — the page's single strategic instruction */}
+        <div className="p-4 sm:p-6">
           <div className="flex flex-wrap items-center gap-2">
             <span className="mono-label text-accent-soft">Recommended move</span>
-            <span className="mono-label normal-case tracking-normal text-tertiary">{urgency}</span>
-          </div>
-          <h2 className="mt-3 text-balance text-[21px] font-semibold leading-tight text-text">
-            {topMove?.name ? `${topMove.name}: ` : ""}
-            {topMove?.action ?? (actioned ? "Monitor replies and keep integrations healthy." : "Let Quorum continue the account loop.")}
-          </h2>
-          <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-secondary">
-            This is intentionally the only primary instruction on the page. Everything else is evidence:
-            why the recommendation exists, what may block it, and what Quorum will do after approval.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {nextAction && !callLive ? (
-              <button onClick={onRunNext} className="btn-primary h-10 px-4">
-                {nextLabel ? `Run ${nextLabel}` : "Run next step"}
-                <ArrowRight size={15} strokeWidth={2.2} />
-              </button>
-            ) : (
-              <Link to="/review" className="btn-primary h-10 px-4">
-                Review customer-facing work
-                <ArrowRight size={15} strokeWidth={2.2} />
-              </Link>
+            <span className="mono-label normal-case tracking-normal text-tertiary">· {urgency}</span>
+            {topMove?.channel && (
+              <span className="mono-label normal-case tracking-normal text-tertiary">
+                · {topMove.channel}
+              </span>
             )}
-            <Link to="/integrations" className="btn-secondary h-10 px-4">
+          </div>
+          <h2 className="mt-3 text-pretty text-[22px] font-semibold leading-snug tracking-tight text-text sm:text-[26px]">
+            {topMove?.name ? <span className="text-accent-soft">{topMove.name}.</span> : null}{" "}
+            {moveText}
+          </h2>
+          {topMove?.rationale && (
+            <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-secondary">
+              {topMove.rationale}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <Link to="/review" className="btn-secondary h-9 px-3.5 text-[12px]">
+              See drafted outreach
+            </Link>
+            <Link to="/integrations" className="btn-secondary h-9 px-3.5 text-[12px]">
               Connect destinations
             </Link>
           </div>
         </div>
 
-        <div className="border-t border-border p-4 lg:border-l lg:border-t-0">
-          <p className="mono-label">What happens next</p>
-          <div className="mt-3 space-y-3">
-            <FlowRow icon={Bot} label="Quorum works" detail={`Builds the brain for ${account.companyName}.`} />
-            <FlowRow icon={ShieldCheck} label="You decide" detail="Drafts and risky actions stop at review." />
-            <FlowRow icon={Zap} label="Systems update" detail="Approved work lands in connected destinations." />
+        {/* Your call — the immediate gate, one primary action */}
+        <div className="border-t border-border bg-[#0c0c0b] p-4 sm:p-6 lg:border-l lg:border-t-0">
+          <div className="flex items-center gap-2">
+            <DecisionIcon size={15} strokeWidth={2.2} className={decision.toneClass} />
+            <p className="mono-label">Your call</p>
+          </div>
+          <h3 className="mt-3 text-balance text-[18px] font-semibold leading-tight text-text">
+            {decision.title}
+          </h3>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-secondary">{decision.body}</p>
+
+          <div className="mt-5 space-y-2">
+            {decision.primary?.to ? (
+              <Link to={decision.primary.to} className="btn-primary h-10 w-full px-4">
+                {decision.primary.label}
+                <ArrowRight size={15} strokeWidth={2.2} />
+              </Link>
+            ) : nextAction && !callLive ? (
+              <button onClick={onRunNext} className="btn-primary h-10 w-full px-4">
+                Run {nextLabel}
+                <ArrowRight size={15} strokeWidth={2.2} />
+              </button>
+            ) : null}
+            <button onClick={onToggleAutopilot} className="btn-secondary h-10 w-full px-4">
+              {autopilot ? <Pause size={14} strokeWidth={2.2} /> : <Play size={14} strokeWidth={2.2} />}
+              {autopilot ? "Pause autopilot" : "Resume autopilot"}
+            </button>
           </div>
         </div>
       </div>
@@ -414,75 +491,40 @@ function DecisionPanel({
   );
 }
 
-function FlowRow({
-  icon: Icon,
-  label,
-  detail,
-}: {
-  icon: LucideIcon;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center border border-border text-accent-soft">
-        <Icon size={14} strokeWidth={2.1} />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[12px] font-medium text-text">{label}</span>
-        <span className="mt-0.5 block text-[11px] leading-relaxed text-tertiary">{detail}</span>
-      </span>
-    </div>
-  );
-}
-
-function SignalPill({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "good" | "warn" | "risk";
-}) {
-  const toneClass = tone === "good" ? "text-good" : tone === "warn" ? "text-warn" : "text-risk";
-  return (
-    <div className="flex items-center gap-2 border border-border bg-surface px-3 py-2">
-      <span className="mono-label normal-case tracking-normal text-tertiary">{label}</span>
-      <span className={`font-mono text-[13px] font-semibold tnum ${toneClass}`}>{value}</span>
-    </div>
-  );
-}
-
-function getDecisionCopy({
+function getDecision({
   account,
   callLive,
   done,
   nextLabel,
-  pendingDrafts,
-  actionIssues,
+  pendingReview,
 }: {
   account: any;
   callLive: boolean;
   done: boolean;
   nextLabel: string | null;
-  pendingDrafts: number;
-  actionIssues: number;
-}) {
+  pendingReview: number;
+}): {
+  icon: LucideIcon;
+  toneClass: string;
+  title: string;
+  body: string;
+  primary?: { label: string; to: string };
+} {
   if (callLive) {
     return {
       icon: Clock3,
       toneClass: "text-warn",
       title: "A live call needs your reply.",
-      body: "The rest of the automation is paused until this qualification thread finishes.",
+      body: "Autopilot is paused until this qualification thread wraps. Reply in the call panel below.",
     };
   }
-  if (pendingDrafts || actionIssues) {
+  if (pendingReview > 0) {
     return {
       icon: AlertTriangle,
       toneClass: "text-warn",
-      title: `${pendingDrafts + actionIssues} item${pendingDrafts + actionIssues === 1 ? "" : "s"} need review.`,
-      body: "Approve clean drafts and audit blocked actions before anything customer-facing leaves Quorum.",
+      title: `${pendingReview} item${pendingReview === 1 ? "" : "s"} need your review.`,
+      body: "Nothing customer-facing leaves Quorum until you approve it. Clear the queue to close the loop.",
+      primary: { label: "Open review gate", to: "/review" },
     };
   }
   if (nextLabel) {
@@ -490,22 +532,23 @@ function getDecisionCopy({
       icon: Sparkles,
       toneClass: "text-accent-soft",
       title: `${nextLabel} is the next safe step.`,
-      body: `Quorum has enough context to continue working ${account.companyName}; you can run it manually or let autopilot proceed.`,
+      body: `Quorum has enough context to keep working ${account.companyName}. Run it now or let autopilot continue.`,
     };
   }
   if (done) {
     return {
       icon: CheckCircle2,
       toneClass: "text-good",
-      title: "The account loop is complete.",
-      body: "Watch for replies, keep the destinations connected, and use Review for any new customer-facing work.",
+      title: "Loop complete. Nothing to approve.",
+      body: "Watch for replies and keep destinations connected. New customer-facing work will surface here.",
+      primary: { label: "Review sent work", to: "/review" },
     };
   }
   return {
     icon: CircleDot,
     toneClass: "text-tertiary",
-    title: "Quorum is waiting for the next signal.",
-    body: "Add inbound context, map the committee, or start a qualification call when you are ready.",
+    title: "Waiting for the next signal.",
+    body: "Map the committee or start a qualification call when you are ready.",
   };
 }
 

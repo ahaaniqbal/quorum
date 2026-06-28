@@ -1,4 +1,4 @@
-import { action, mutation, internalMutation } from "./_generated/server";
+import { action, mutation, internalAction, internalMutation } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import { v } from "convex/values";
 import { committeeForDomain } from "./lib/seed";
@@ -16,6 +16,62 @@ const ROLE_LABEL: Record<string, string> = {
 // decision-makers if Fiber is unavailable. Members pop in one-by-one via the
 // scheduler for a live "finding the room" feel.
 export const mapCommittee = action({
+  args: { accountId: v.id("accounts") },
+  handler: async (ctx, { accountId }): Promise<number> => {
+    const access: any = await ctx.runQuery(internal.authz.assertAccountAccess, { accountId });
+    const runId: string = await ctx.runMutation(internal.agentTrace.startRun, {
+      accountId,
+      userId: access.userId ?? undefined,
+      trigger: "manual",
+      goal: `Map the buying committee for ${access.account.companyName}`,
+    });
+    try {
+      const mapped = await ctx.runAction(internal.committee.mapCommitteeAutonomous, { accountId });
+      await ctx.runMutation(internal.agentTrace.recordStep, {
+        runId: runId as any,
+        accountId,
+        agent: "committee",
+        type: "reasoning",
+        status: mapped > 0 ? "completed" : "blocked",
+        label: mapped > 0 ? "Committee mapping scheduled" : "No verified committee found",
+        detail:
+          mapped > 0
+            ? "The committee agent found likely buying roles and scheduled verified contacts into the account brain."
+            : "Quorum paused before inventing stakeholders because no verified committee members were available.",
+        tool: "Fiber people-search + committee mapper",
+        output: { mapped },
+      });
+      await ctx.runMutation(internal.agentTrace.completeRun, {
+        runId: runId as any,
+        status: mapped > 0 ? "completed" : "blocked",
+        summary:
+          mapped > 0
+            ? `Mapped ${mapped} stakeholder${mapped === 1 ? "" : "s"} for ${access.account.companyName}.`
+            : `No verified committee members found for ${access.account.companyName}; account remains grounded to known contacts.`,
+      });
+      return mapped;
+    } catch (error: any) {
+      await ctx.runMutation(internal.agentTrace.recordStep, {
+        runId: runId as any,
+        accountId,
+        agent: "committee",
+        type: "reasoning",
+        status: "failed",
+        label: "Committee mapping failed",
+        detail: error?.message ?? "Unknown committee mapping error.",
+        error: error?.message ?? "Unknown error",
+      });
+      await ctx.runMutation(internal.agentTrace.completeRun, {
+        runId: runId as any,
+        status: "failed",
+        summary: `Committee mapping failed for ${access.account.companyName}.`,
+      });
+      throw error;
+    }
+  },
+});
+
+export const mapCommitteeAutonomous = internalAction({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<number> => {
     // Unguarded load so this runs both for the signed-in autopilot and for

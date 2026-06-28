@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { motion } from "framer-motion";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signUp");
+  const location = useLocation();
+  const [flow, setFlow] = useState<"signIn" | "signUp">(
+    location.pathname === "/login" ? "signIn" : "signUp"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState<null | "email" | "google" | "guest">(null);
@@ -51,19 +54,14 @@ export default function SignIn() {
   }
 
   return (
-    <div className="grid-lines relative flex min-h-screen items-center justify-center overflow-hidden bg-bg px-6">
-      <div className="pointer-events-none absolute left-5 top-4 flex items-center gap-2">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+      <Link to="/" className="absolute left-5 top-4 flex items-center gap-2 opacity-90 transition-opacity hover:opacity-100">
         <img src="/quorum-logo.svg" alt="Quorum" className="h-3.5 w-auto" />
         <span className="mono-label">GTM</span>
-      </div>
+      </Link>
       <div className="pointer-events-none absolute right-5 top-4 mono-label">AI ACCOUNT EXECUTIVE</div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.175, 0.885, 0.32, 1.1] }}
-        className="relative z-10 w-full max-w-sm"
-      >
+      <div className="relative z-10 w-full max-w-sm">
         <div className="mb-7 flex items-center">
           <img src="/quorum-logo.svg" alt="Quorum" className="h-6 w-auto" />
         </div>
@@ -146,7 +144,7 @@ export default function SignIn() {
               : "New here? Create an account"}
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

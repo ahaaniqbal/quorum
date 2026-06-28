@@ -7,4 +7,5 @@ Current handoff summary:
 - The brand direction is dark, sharp, orange-accented, and operator-grade. Avoid blue/purple tints and avoid unnecessary border radius.
 - The app has recently gained first-run onboarding, Ask Quorum surfaces, updated Quorum branding, customer-facing integrations, company logos, and a redesigned `/deal/:accountId` command center.
 - The main product loop is ingest → account brain → review gate → close loop.
-- Run `npm run build` before handing work back.
+- For the current 10/10 agentic push, read `docs/CLAUDE_AGENTIC_HANDOFF.md` after `AGENTS.md`.
+- Run `npm run smoke` and `npm run build` before handing work back.

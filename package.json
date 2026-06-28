@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:all": "concurrently -n convex,web -c blue,magenta \"npx convex dev\" \"vite\"",
     "build": "tsc -b && vite build",
+    "smoke": "node scripts/product-smoke.mjs",
     "preview": "vite preview",
     "convex": "convex dev"
   },

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import AppShell from "./AppShell";
@@ -72,7 +72,7 @@ export default function AuthedApp() {
         <Route path="/review" element={<Review />} />
         <Route path="/integrations" element={<Integrations />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Home />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

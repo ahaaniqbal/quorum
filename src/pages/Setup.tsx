@@ -1,48 +1,37 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAction, useQuery } from "convex/react";
+import { Check } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import {
   DEFAULT_AUTONOMY,
-  DEFAULT_SETUP,
   loadAutonomyPrefs,
   loadSetupPrefs,
   saveAutonomyPrefs,
-  saveSetupPrefs,
   type AutonomyPrefs,
   type SetupPrefs,
 } from "../lib/preferences";
-
-const CONNECTORS: {
-  key: keyof SetupPrefs;
-  label: string;
-  desc: string;
-}[] = [
-  { key: "slackConnected", label: "Slack", desc: "Post qualified-account alerts." },
-  { key: "crmConnected", label: "CRM", desc: "Create contacts and deal records." },
-  { key: "calendarConnected", label: "Calendar", desc: "Create follow-up invites." },
-  { key: "emailConnected", label: "Email", desc: "Send approved committee outreach." },
-];
 
 export default function Setup() {
   const me = useQuery(api.profiles.getMyProfile);
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
   const ingest = useQuery(api.inbound.getIngestInfo, {});
   const ensureToken = useAction(api.inbound.ensureIngestToken);
-  const [setup, setSetup] = useState<SetupPrefs>(() => loadSetupPrefs());
+  // Connector state is owned by the Integrations page; Setup only reads it.
+  const [setup] = useState<SetupPrefs>(() => loadSetupPrefs());
   const [autonomy, setAutonomy] = useState<AutonomyPrefs>(() => loadAutonomyPrefs());
   const [minting, setMinting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => saveSetupPrefs(setup), [setup]);
   useEffect(() => saveAutonomyPrefs(autonomy), [autonomy]);
 
   const profileDone = Boolean(me?.profile?.companyName && me.profile.product);
   const webhookDone = Boolean(ingest?.url);
   const integrationCount = Object.values(setup).filter(Boolean).length;
   const autonomyDone = autonomy.mode !== "auto_send" || autonomy.minScore >= 50;
-  const firstAccountDone = pipeline.length > 0;
+  // Credit only a real account the user worked, not the seeded demo accounts.
+  const firstAccountDone = pipeline.some((a: any) => !a.isDemo);
   const readyToInvite =
     profileDone && webhookDone && integrationCount >= 2 && autonomyDone && firstAccountDone;
   const steps = useMemo(
@@ -99,7 +88,7 @@ export default function Setup() {
           <span className="h-4 w-px bg-border" />
           <h1 className="truncate text-[15px] font-semibold tracking-tight">Customer launch checklist</h1>
         </div>
-        <span className="mono-label tnum text-tertiary">{complete} / 5 ready</span>
+        <span className="mono-label tnum text-tertiary">{complete} / {steps.length} ready</span>
       </header>
 
       <div className="mx-auto max-w-6xl px-6 py-7">
@@ -124,9 +113,9 @@ export default function Setup() {
                 </span>
                 <span className="mono-label tnum text-tertiary">{complete} / {steps.length}</span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-surface2">
+              <div className="h-1.5 w-full overflow-hidden border border-border bg-bg">
                 <div
-                  className="h-full rounded-full bg-accent transition-all duration-300"
+                  className="h-full bg-accent transition-all duration-300"
                   style={{ width: `${(complete / steps.length) * 100}%` }}
                 />
               </div>
@@ -145,15 +134,21 @@ export default function Setup() {
             <ChecklistRow
               done={webhookDone}
               label="Inbound source"
-              desc={webhookDone ? `Webhook ready: ${ingest?.url}` : "Generate a webhook for forms, CRM, or email forwarding."}
+              desc={webhookDone ? "Webhook ready. Copy it for your forms, CRM, or email forwarding." : "Generate a webhook for forms, CRM, or email forwarding."}
               action={
                 webhookDone ? (
                   <button
                     type="button"
-                    className="btn-secondary h-9 px-3 text-[12px]"
+                    className="btn-secondary flex h-9 items-center gap-1.5 px-3 text-[12px]"
                     onClick={() => copyText("webhook", ingest?.url ?? "")}
                   >
-                    {copied === "webhook" ? "Copied ✓" : "Copy URL"}
+                    {copied === "webhook" ? (
+                      <>
+                        <Check size={13} strokeWidth={2.4} className="text-good" /> Copied
+                      </>
+                    ) : (
+                      "Copy URL"
+                    )}
                   </button>
                 ) : (
                   <button className="btn-primary h-9 px-3 text-[12px]" onClick={generateWebhook} disabled={minting}>
@@ -188,54 +183,33 @@ export default function Setup() {
               <span className="plus plus-tr" />
               <span className="plus plus-bl" />
               <span className="plus plus-br" />
-              <p className="mono-label">Connectors</p>
-              <div className="mt-3 space-y-2">
-                {CONNECTORS.map((connector) => (
-                  <label
-                    key={connector.key}
-                    className="flex cursor-pointer items-start gap-3 rounded border border-border bg-surface px-3 py-2 transition-colors hover:border-border-strong"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={setup[connector.key]}
-                      onChange={(event) => {
-                        setSetup((current) => ({
-                          ...current,
-                          [connector.key]: event.target.checked,
-                        }));
-                        markSaved();
-                      }}
-                      className="mt-1"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-medium text-text">{connector.label}</span>
-                      <span className="block text-[12px] text-tertiary">{connector.desc}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {saved && <p className="mt-3 mono-label text-good">saved</p>}
-            </div>
-
-            <div className="cell p-4">
-              <span className="plus plus-tl" />
-              <span className="plus plus-tr" />
-              <span className="plus plus-bl" />
-              <span className="plus plus-br" />
               <p className="mono-label">Recommended launch mode</p>
               <p className="mt-2 text-[13px] leading-relaxed text-secondary">
-                Start with approval required. Move to auto-send after a week of accepted drafts.
+                Start with approval required, so every customer-facing message waits in Review.
+                Move to auto-send after a week of accepted drafts.
               </p>
-              <button
-                className="btn-primary mt-4 h-9 px-4"
-                onClick={() => {
-                  setAutonomy(DEFAULT_AUTONOMY);
-                  setSetup((current) => ({ ...DEFAULT_SETUP, ...current, slackConnected: true, emailConnected: true }));
-                  markSaved();
-                }}
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  className="btn-primary h-9 px-4"
+                  onClick={() => {
+                    setAutonomy(DEFAULT_AUTONOMY);
+                    markSaved();
+                  }}
+                >
+                  Apply review-first preset
+                </button>
+                {saved && (
+                  <span className="mono-label flex items-center gap-1 text-good">
+                    <Check size={12} strokeWidth={2.4} /> applied
+                  </span>
+                )}
+              </div>
+              <Link
+                to="/integrations"
+                className="mono-label mt-3 inline-block normal-case tracking-normal text-accent-soft transition-colors hover:text-text"
               >
-                Apply safe launch preset
-              </button>
+                Connect your destinations in Integrations →
+              </Link>
             </div>
 
             <div className="cell p-4">
@@ -247,7 +221,7 @@ export default function Setup() {
               <ol className="mt-3 space-y-2 text-[12px] leading-relaxed text-secondary">
                 <li><span className="text-text">1.</span> Paste five real inbound emails in Pipeline.</li>
                 <li><span className="text-text">2.</span> Review every generated draft before approving.</li>
-                <li><span className="text-text">3.</span> Mark Slack + email connected, then invite one design partner.</li>
+                <li><span className="text-text">3.</span> Connect Slack and email in Integrations, then invite one design partner.</li>
               </ol>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link className="btn-primary h-9 px-3 text-[12px]" to="/pipeline">
@@ -300,11 +274,15 @@ function ChecklistRow({
     <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4">
       <div className="flex min-w-0 items-start gap-3">
         <span
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-mono text-[10px] ${
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border ${
             done ? "border-good bg-good/10 text-good" : "border-border text-tertiary"
           }`}
         >
-          {done ? "✓" : "•"}
+          {done ? (
+            <Check size={12} strokeWidth={2.6} />
+          ) : (
+            <span className="h-1.5 w-1.5 bg-tertiary" />
+          )}
         </span>
         <div className="min-w-0">
           <p className="text-[14px] font-semibold text-text">{label}</p>

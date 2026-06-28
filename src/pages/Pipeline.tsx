@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { motion } from "framer-motion";
+import { Check, LogIn, Upload, Zap } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { STAGES, STAGE_INDEX } from "../lib/stages";
 import { timeAgo } from "../lib/format";
@@ -69,6 +71,9 @@ export default function Pipeline() {
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
   const sampleId = useQuery(api.queries.getSampleAccountId, {});
   const ingest = useQuery(api.inbound.getIngestInfo, {});
+  const me = useQuery(api.profiles.getMyProfile);
+  const { signOut } = useAuthActions();
+  const isGuest = (me?.user as any)?.isAnonymous;
   const [emails, setEmails] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
@@ -214,6 +219,20 @@ export default function Pipeline() {
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-7">
+        {isGuest && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border border-accent/30 bg-accent/10 px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <LogIn size={15} strokeWidth={2} className="shrink-0 text-accent-soft" />
+              <p className="text-[13px] text-text">
+                You are exploring as a guest. Accounts you work here are not saved.
+              </p>
+            </div>
+            <button onClick={() => signOut()} className="btn-primary h-8 shrink-0 px-3 text-[12px]">
+              Sign in to save your pipeline
+            </button>
+          </div>
+        )}
+
         {/* Command center summary */}
         <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Active accounts" value={pipeline.length} detail={`${worked} fully worked`} />
@@ -339,7 +358,7 @@ export default function Pipeline() {
                 className="btn-secondary h-9 px-4"
                 title="Upload a CSV or text file of emails"
               >
-                ⇪ Upload CSV
+                <Upload size={14} strokeWidth={2} /> Upload CSV
               </button>
               <button
                 type="button"
@@ -348,7 +367,7 @@ export default function Pipeline() {
                 className="btn-secondary h-9 px-4"
                 title="Simulate a morning of inbound. Quorum works them all in parallel"
               >
-                ↯ Simulate {BURST.length}-lead burst
+                <Zap size={14} strokeWidth={2} /> Simulate {BURST.length}-lead burst
               </button>
               <button
                 type="button"
@@ -394,7 +413,13 @@ export default function Pipeline() {
                   POST {webhookUrl}
                 </code>
                 <button onClick={copyHook} className="btn-secondary h-9 px-3 text-[12px]">
-                  {copied ? "Copied ✓" : "Copy"}
+                  {copied ? (
+                    <>
+                      <Check size={13} strokeWidth={2.4} className="text-good" /> Copied
+                    </>
+                  ) : (
+                    "Copy"
+                  )}
                 </button>
               </div>
             ) : (

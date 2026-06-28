@@ -42,7 +42,7 @@ export const seedDemo = mutation({
         for (const l of lines) await ctx.db.delete(l._id);
         await ctx.db.delete(cv._id);
       }
-      for (const table of ["contacts", "events", "actions", "drafts"] as const) {
+      for (const table of ["contacts", "events", "actions", "drafts", "agentSteps", "agentRuns"] as const) {
         const rows = await ctx.db
           .query(table)
           .withIndex("by_account", (q) => q.eq("accountId", acc._id))
@@ -54,6 +54,59 @@ export const seedDemo = mutation({
 
     const now = Date.now();
     const min = (m: number) => now - m * 60_000;
+    const seedRun = async ({
+      accountId,
+      trigger,
+      goal,
+      status,
+      summary,
+      startedAgo,
+      completedAgo,
+      steps,
+    }: {
+      accountId: any;
+      trigger: string;
+      goal: string;
+      status: string;
+      summary: string;
+      startedAgo: number;
+      completedAgo: number;
+      steps: {
+        agent: string;
+        type: string;
+        status: string;
+        label: string;
+        detail?: string;
+        tool?: string;
+        output?: any;
+        m: number;
+      }[];
+    }) => {
+      const runId = await ctx.db.insert("agentRuns", {
+        accountId,
+        trigger,
+        goal,
+        status,
+        summary,
+        startedAt: min(startedAgo),
+        completedAt: min(completedAgo),
+      });
+      for (const step of steps) {
+        await ctx.db.insert("agentSteps", {
+          runId,
+          accountId,
+          agent: step.agent,
+          type: step.type,
+          status: step.status,
+          label: step.label,
+          detail: step.detail,
+          tool: step.tool,
+          output: step.output,
+          startedAt: min(step.m),
+          completedAt: step.status === "running" ? undefined : min(Math.max(0, step.m - 1)),
+        });
+      }
+    };
 
     // ---------- ACCOUNT A: Ramp (hero, fully worked) ----------
     const rampId = await ctx.db.insert("accounts", {
@@ -250,6 +303,65 @@ export const seedDemo = mutation({
       { type: "action_fired", label: "Fired 3 actions: Slack alert, CRM deal, calendar invite" },
     ];
     for (const e of eventsA) await ctx.db.insert("events", { accountId: rampId, ...e });
+    await seedRun({
+      accountId: rampId,
+      trigger: "demo",
+      goal: "Work Ramp end-to-end from inbound signal to review-gated actions",
+      status: "completed",
+      summary: "Enriched Ramp, qualified the champion, mapped 4 stakeholders, drafted outreach, and executed 3 approved actions.",
+      startedAgo: 72,
+      completedAgo: 31,
+      steps: [
+        {
+          agent: "ingest",
+          type: "tool_call",
+          status: "completed",
+          label: "Inbound account accepted and enriched",
+          detail: "Resolved firmographics, growth signals, tech stack, and source metadata.",
+          tool: "Fiber + Orange Slice",
+          output: { domain: "ramp.com", headcount: "1,000–1,500", funding: "Series D" },
+          m: 72,
+        },
+        {
+          agent: "brain",
+          type: "reasoning",
+          status: "completed",
+          label: "Account memory synthesized",
+          detail: "Converted call facts and enrichment into pain, budget, timing, and next move.",
+          output: { score: 82, booked: true },
+          m: 61,
+        },
+        {
+          agent: "committee",
+          type: "reasoning",
+          status: "completed",
+          label: "Buying committee mapped",
+          detail: "Identified champion, economic buyer, RevOps owner, and technical influencer.",
+          tool: "committee mapper",
+          output: { stakeholders: 4, gaps: 1 },
+          m: 52,
+        },
+        {
+          agent: "outreach",
+          type: "draft",
+          status: "completed",
+          label: "Persona outreach drafted for review",
+          detail: "Prepared CFO, RevOps, and technical emails while holding customer-facing sends.",
+          output: { drafts: 3, reviewGate: true },
+          m: 43,
+        },
+        {
+          agent: "actions",
+          type: "external_action",
+          status: "completed",
+          label: "Approved actions landed",
+          detail: "Slack alert, CRM deal, and calendar invite were completed after review.",
+          tool: "Slack + HubSpot + Google Calendar",
+          output: { done: 3, blocked: 0 },
+          m: 32,
+        },
+      ],
+    });
 
     // ---------- ACCOUNT B: Notion (committee mapped, no call yet) ----------
     const notionId = await ctx.db.insert("accounts", {
@@ -299,6 +411,45 @@ export const seedDemo = mutation({
       { type: "committee_mapped", label: "Mapped the buying committee: found 2 decision makers" },
     ] as EventSeed[])
       await ctx.db.insert("events", { accountId: notionId, ...e });
+    await seedRun({
+      accountId: notionId,
+      trigger: "demo",
+      goal: "Work Notion until the next safe human decision",
+      status: "blocked",
+      summary: "Enriched Notion and mapped 2 stakeholders. Paused before outreach because the first call/review gate has not happened yet.",
+      startedAgo: 38,
+      completedAgo: 30,
+      steps: [
+        {
+          agent: "ingest",
+          type: "tool_call",
+          status: "completed",
+          label: "Account enriched",
+          detail: "Resolved company profile, stack, and enterprise sales signals.",
+          tool: "Fiber",
+          output: { domain: "notion.so", headcount: "800–1,000" },
+          m: 38,
+        },
+        {
+          agent: "committee",
+          type: "reasoning",
+          status: "completed",
+          label: "Committee candidates mapped",
+          detail: "Found likely revenue and operations owners.",
+          output: { stakeholders: 2 },
+          m: 34,
+        },
+        {
+          agent: "outreach",
+          type: "approval_gate",
+          status: "blocked",
+          label: "Paused before customer-facing outreach",
+          detail: "Quorum is waiting for review or a qualification call before drafting broad committee outreach.",
+          output: { needsHumanDecision: true },
+          m: 30,
+        },
+      ],
+    });
 
     // ---------- ACCOUNT C: Vercel (just enriched) ----------
     const vercelId = await ctx.db.insert("accounts", {
@@ -335,6 +486,36 @@ export const seedDemo = mutation({
       accountId: vercelId,
       type: "enriched",
       label: "Enriched Vercel in 1.6s: developer infrastructure, ~600 employees",
+    });
+    await seedRun({
+      accountId: vercelId,
+      trigger: "demo",
+      goal: "Start Vercel account work from a fresh inbound lead",
+      status: "blocked",
+      summary: "Enriched Vercel and paused at committee mapping. The next agent should verify real stakeholders before drafting.",
+      startedAgo: 18,
+      completedAgo: 15,
+      steps: [
+        {
+          agent: "ingest",
+          type: "tool_call",
+          status: "completed",
+          label: "Inbound account enriched",
+          detail: "Resolved developer infrastructure profile, funding, headcount, and stack.",
+          tool: "Fiber",
+          output: { domain: "vercel.com", funding: "Series E", headcount: "500–700" },
+          m: 18,
+        },
+        {
+          agent: "committee",
+          type: "reasoning",
+          status: "blocked",
+          label: "Committee verification needed",
+          detail: "Only the primary contact is known. Quorum should map verified buying roles before outreach.",
+          output: { knownContacts: 1, verifiedCommittee: 0 },
+          m: 15,
+        },
+      ],
     });
 
     return { seeded: true, hero: rampId };

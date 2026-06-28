@@ -10,7 +10,9 @@
 
 import type * as actions from "../actions.js";
 import type * as admin from "../admin.js";
+import type * as agentTrace from "../agentTrace.js";
 import type * as auth from "../auth.js";
+import type * as authz from "../authz.js";
 import type * as brain from "../brain.js";
 import type * as closeLoop from "../closeLoop.js";
 import type * as committee from "../committee.js";
@@ -18,6 +20,7 @@ import type * as http from "../http.js";
 import type * as hydra from "../hydra.js";
 import type * as inbound from "../inbound.js";
 import type * as lib_fiber from "../lib/fiber.js";
+import type * as lib_intelligence from "../lib/intelligence.js";
 import type * as lib_openai from "../lib/openai.js";
 import type * as lib_orangeslice from "../lib/orangeslice.js";
 import type * as lib_prompts from "../lib/prompts.js";
@@ -39,7 +42,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   actions: typeof actions;
   admin: typeof admin;
+  agentTrace: typeof agentTrace;
   auth: typeof auth;
+  authz: typeof authz;
   brain: typeof brain;
   closeLoop: typeof closeLoop;
   committee: typeof committee;
@@ -47,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   hydra: typeof hydra;
   inbound: typeof inbound;
   "lib/fiber": typeof lib_fiber;
+  "lib/intelligence": typeof lib_intelligence;
   "lib/openai": typeof lib_openai;
   "lib/orangeslice": typeof lib_orangeslice;
   "lib/prompts": typeof lib_prompts;

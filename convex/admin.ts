@@ -34,7 +34,7 @@ export const resetDemo = mutation({
         for (const l of lines) await del(l._id);
         await del(cv._id);
       }
-      for (const table of ["contacts", "events", "actions", "drafts"] as const) {
+      for (const table of ["contacts", "events", "actions", "drafts", "agentSteps", "agentRuns"] as const) {
         const rows = await ctx.db
           .query(table)
           .withIndex("by_account", (q) => q.eq("accountId", acc._id))

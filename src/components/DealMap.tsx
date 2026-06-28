@@ -8,6 +8,7 @@ import {
   initials,
 } from "../lib/format";
 import Panel from "./Panel";
+import { Star } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { copy } from "../copy";
 import CommitteeGraph from "./CommitteeGraph";
@@ -43,58 +44,68 @@ export default function DealMap({
       label="Committee"
       index="03"
       desc={copy.panels.dealMap.desc}
-      className="min-h-[520px] xl:min-h-0"
+      className="min-h-[420px]"
       right={
         <span className="mono-label tnum text-tertiary">
           {String(contacts.length).padStart(2, "0")} in committee
         </span>
       }
     >
-      <div className="flex-1 space-y-2 overflow-y-auto p-2.5">
+      <div
+        className={
+          hasGraph
+            ? "grid min-h-0 flex-1 gap-0 overflow-hidden xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"
+            : "flex min-h-0 flex-1 flex-col"
+        }
+      >
         {hasGraph && (
-          <div className="dot-grid mb-1 border border-border py-2">
-            <CommitteeGraph
-              graph={graph}
-              contacts={contacts}
-              selectedId={selected}
-              onSelect={(email) => setSelected((s) => (s === email ? undefined : email))}
-            />
-          </div>
-        )}
-
-        {primary && <ContactCard contact={primary} drafts={drafts} move={moveFor(primary)} highlight />}
-
-        <AnimatePresence initial={false}>
-          {committee.map((c) => (
-            <motion.div
-              key={c._id}
-              layout
-              initial={{ opacity: 0, scale: 0.96, y: 6 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: [0.175, 0.885, 0.32, 1.1] }}
-            >
-              <ContactCard
-                contact={c}
-                drafts={drafts}
-                move={moveFor(c)}
-                highlight={selected === c.email}
+          <div className="dot-grid border-b border-border p-3 xl:border-b-0 xl:border-r">
+            <div className="h-[360px] xl:h-[424px]">
+              <CommitteeGraph
+                graph={graph}
+                contacts={contacts}
+                selectedId={selected}
+                onSelect={(email) => setSelected((s) => (s === email ? undefined : email))}
               />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {committee.length === 0 && (
-          <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-            <p className="max-w-[220px] text-[13px] leading-relaxed text-secondary">
-              {mapping ? copy.loading.mapping : copy.empty.dealMap}
-            </p>
-            {!mapping && (
-              <button onClick={onMapCommittee} className="btn-secondary h-9 text-[12px]">
-                Map committee now
-              </button>
-            )}
+            </div>
           </div>
         )}
+
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5">
+          {primary && <ContactCard contact={primary} drafts={drafts} move={moveFor(primary)} highlight />}
+
+          <AnimatePresence initial={false}>
+            {committee.map((c) => (
+              <motion.div
+                key={c._id}
+                layout
+                initial={{ opacity: 0, scale: 0.96, y: 6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.175, 0.885, 0.32, 1.1] }}
+              >
+                <ContactCard
+                  contact={c}
+                  drafts={drafts}
+                  move={moveFor(c)}
+                  highlight={selected === c.email}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {committee.length === 0 && (
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+              <p className="max-w-[220px] text-[13px] leading-relaxed text-secondary">
+                {mapping ? copy.loading.mapping : copy.empty.dealMap}
+              </p>
+              {!mapping && (
+                <button onClick={onMapCommittee} className="btn-secondary h-9 text-[12px]">
+                  Map committee now
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </Panel>
   );
@@ -132,9 +143,7 @@ function ContactCard({
           <div className="flex items-center gap-1.5">
             <p className="truncate text-[13px] font-medium text-text">{contact.name}</p>
             {contact.isPrimary && (
-              <span style={{ color: "var(--accent)" }} className="text-[10px]">
-                ★
-              </span>
+              <Star size={11} strokeWidth={2} className="shrink-0 fill-accent text-accent" />
             )}
           </div>
           <p className="truncate text-[11px] text-tertiary">{contact.title}</p>
@@ -198,7 +207,7 @@ function ContactCard({
           >
             <div className="border border-border bg-bg p-3">
               <p className="mono-label mb-1 normal-case tracking-normal text-tertiary">
-                {draft.status === "sent" ? "sent ✓" : "draft"}
+                {draft.status === "sent" ? "sent" : "draft"}
               </p>
               <p className="text-[12px] font-medium text-text">{draft.subject}</p>
               <p className="mt-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-secondary">

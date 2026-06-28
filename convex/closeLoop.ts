@@ -1,6 +1,32 @@
-import { mutation, internalMutation, internalAction } from "./_generated/server";
+import { mutation, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+async function requireAccountAccess(ctx: any, accountId: any) {
+  const account = await ctx.db.get(accountId);
+  if (!account) throw new Error("Account not found");
+  const userId = await getAuthUserId(ctx);
+  if (account.userId && account.userId !== userId) throw new Error("Not authorized");
+  return account;
+}
+
+export const getCloseLoopData = internalQuery({
+  args: { accountId: v.id("accounts") },
+  handler: async (ctx, { accountId }) => {
+    const account = await ctx.db.get(accountId);
+    if (!account) return null;
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_account", (q) => q.eq("accountId", accountId))
+      .collect();
+    const drafts = await ctx.db
+      .query("drafts")
+      .withIndex("by_account", (q) => q.eq("accountId", accountId))
+      .collect();
+    return { account, contacts, drafts };
+  },
+});
 
 // Fires the cross-tool action loop. Each action lights up pending to done with a
 // stagger for visual effect. Slack hits Composio for real when a key is present;
@@ -8,8 +34,8 @@ import { v } from "convex/values";
 export const fireActions = mutation({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }) => {
-    const account = await ctx.db.get(accountId);
-    if (!account) throw new Error("Account not found");
+    const account = await requireAccountAccess(ctx, accountId);
+    const userId = await getAuthUserId(ctx);
     const company = account.companyName;
 
     const contacts = await ctx.db
@@ -17,6 +43,14 @@ export const fireActions = mutation({
       .withIndex("by_account", (q) => q.eq("accountId", accountId))
       .collect();
     const committeeCount = contacts.filter((c) => !c.isPrimary).length;
+    const runId = await ctx.db.insert("agentRuns", {
+      accountId,
+      userId: userId ?? undefined,
+      trigger: "review",
+      goal: `Close the loop for ${company} across CRM, email, calendar, and team alerts`,
+      status: "running",
+      startedAt: Date.now(),
+    });
 
     const defs = [
       {
@@ -57,6 +91,21 @@ export const fireActions = mutation({
       accountId,
       type: "action_fired",
       label: "Closing the loop: firing actions across the stack…",
+    });
+    await ctx.db.insert("agentSteps", {
+      runId,
+      accountId,
+      agent: "actions",
+      type: "approval_gate",
+      status: "completed",
+      label: "Human-approved action plan queued",
+      detail: "Quorum converted the approved account plan into destination-specific jobs.",
+      output: {
+        destinations: defs.map((d) => d.system),
+        committeeCount,
+      },
+      startedAt: Date.now(),
+      completedAt: Date.now(),
     });
 
     let t = 250;
@@ -105,18 +154,24 @@ export const fireActions = mutation({
         accountId,
         type: d.type,
         label: d.label,
+        runId,
       });
       t += 700;
     }
 
-    await ctx.scheduler.runAfter(t + 200, internal.closeLoop.finish, { accountId });
+    await ctx.scheduler.runAfter(t + 200, internal.closeLoop.finish, { accountId, runId });
   },
 });
 
 export const complete = internalAction({
-  args: { accountId: v.id("accounts"), type: v.string(), label: v.string() },
-  handler: async (ctx, { accountId, type, label }) => {
-    const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+  args: {
+    accountId: v.id("accounts"),
+    type: v.string(),
+    label: v.string(),
+    runId: v.optional(v.id("agentRuns")),
+  },
+  handler: async (ctx, { accountId, type, label, runId }) => {
+    const data: any = await ctx.runQuery(internal.closeLoop.getCloseLoopData, { accountId });
     const account = data?.account;
     const contacts = data?.contacts ?? [];
     const primary = contacts.find((c: any) => c.isPrimary) ?? contacts[0];
@@ -162,8 +217,35 @@ export const complete = internalAction({
         lastError: result.ok ? undefined : missingRequirement(type),
       },
     });
+    if (runId) {
+      await ctx.runMutation(internal.agentTrace.recordStep, {
+        runId,
+        accountId,
+        agent: "actions",
+        type: "external_action",
+        status: result.ok ? "completed" : "blocked",
+        label: finalLabel,
+        detail: result.ok
+          ? `${systemName(type)} accepted the action and returned an external receipt.`
+          : missingRequirement(type),
+        tool: systemName(type),
+        output: result.ok
+          ? { externalId: result.id ?? "ok" }
+          : { blocked: true, missing: missingRequirement(type) },
+        externalId: result.id,
+        error: result.ok ? undefined : missingRequirement(type),
+      });
+    }
   },
 });
+
+function systemName(type: string): string {
+  if (type === "email") return "AgentMail";
+  if (type === "hubspot") return "HubSpot via Composio";
+  if (type === "calendar") return "Google Calendar via Composio";
+  if (type === "slack") return "Slack via Composio";
+  return type;
+}
 
 function missingRequirement(type: string): string {
   if (type === "email") return "AgentMail is not connected or no approved drafts were available.";
@@ -229,14 +311,44 @@ export const markDone = internalMutation({
 });
 
 export const finish = internalMutation({
-  args: { accountId: v.id("accounts") },
-  handler: async (ctx, { accountId }) => {
+  args: { accountId: v.id("accounts"), runId: v.optional(v.id("agentRuns")) },
+  handler: async (ctx, { accountId, runId }) => {
     await ctx.db.patch(accountId, { status: "actioned" });
     await ctx.db.insert("events", {
       accountId,
       type: "action_fired",
       label: "Action loop complete",
     });
+    if (runId) {
+      const actions = await ctx.db
+        .query("actions")
+        .withIndex("by_account", (q) => q.eq("accountId", accountId))
+        .collect();
+      const done = actions.filter((action) => action.status === "done").length;
+      const blocked = actions.filter((action) => action.status === "skipped" || action.status === "failed").length;
+      const now = Date.now();
+      await ctx.db.insert("agentSteps", {
+        runId,
+        accountId,
+        agent: "actions",
+        type: "reasoning",
+        status: blocked ? "blocked" : "completed",
+        label: blocked ? "Action loop finished with blocked destinations" : "Action loop completed",
+        detail: blocked
+          ? "Some destinations need customer connection before Quorum can execute them for real."
+          : "Every approved destination action completed successfully.",
+        output: { done, blocked },
+        startedAt: now,
+        completedAt: now,
+      });
+      await ctx.db.patch(runId, {
+        status: blocked ? "blocked" : "completed",
+        summary: blocked
+          ? `Closed loop partially: ${done} action${done === 1 ? "" : "s"} executed, ${blocked} blocked by missing integrations.`
+          : `Closed loop: ${done} approved action${done === 1 ? "" : "s"} executed across customer systems.`,
+        completedAt: now,
+      });
+    }
     // Sync the account brain to HydraDB (best-effort; no-op without a key).
     await ctx.scheduler.runAfter(300, internal.hydra.ingest, { accountId });
   },
@@ -247,13 +359,13 @@ export const finish = internalMutation({
 async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<number> {
   const key = process.env.AGENTMAIL_API_KEY;
   if (!key) return 0;
-  const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+  const data: any = await ctx.runQuery(internal.closeLoop.getCloseLoopData, { accountId });
   if (!data) return 0;
   const inbox = process.env.AGENTMAIL_INBOX ?? "quorum@agentmail.to";
   let sent = 0;
   for (const draft of data.drafts ?? []) {
     if (draft.status !== "approved") continue;
-    const contact = data.contacts.find((c: any) => c._id === draft.contactId);
+    const contact = data.contacts.find((c: any) => String(c._id) === String(draft.contactId));
     if (!contact?.email) continue;
     try {
       const res = await fetch(`https://api.agentmail.to/v0/inboxes/${inbox}/messages/send`, {

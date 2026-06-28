@@ -80,11 +80,14 @@ textarea:focus-visible {
     @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium;
   }
   .btn-primary {
-    @apply inline-flex h-9 items-center justify-center gap-2 rounded px-4 text-[13px] font-medium text-white transition-all duration-fast ease-vercel hover:brightness-110 active:brightness-95 disabled:opacity-50;
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded px-4 text-[13px] font-medium text-white transition-all duration-fast ease-vercel hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:brightness-95 disabled:translate-y-0 disabled:opacity-50;
     background: var(--accent);
   }
+  .btn-primary:not(:disabled):hover {
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
   .btn-secondary {
-    @apply inline-flex h-9 items-center justify-center gap-2 rounded border border-border bg-surface px-4 text-[13px] font-medium text-text transition-all duration-fast ease-vercel hover:border-border-strong hover:bg-surface2 disabled:opacity-50;
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded border border-border bg-surface px-4 text-[13px] font-medium text-text transition-all duration-fast ease-vercel hover:-translate-y-px hover:border-border-strong hover:bg-surface2 active:translate-y-0 disabled:translate-y-0 disabled:opacity-50;
   }
 }
 
@@ -119,6 +122,9 @@ textarea:focus-visible {
   .border-accent-subtle {
     border-color: color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.08)) !important;
   }
+  .fill-accent {
+    fill: var(--accent) !important;
+  }
   .fill-accent-soft {
     fill: #fdba74 !important;
   }
@@ -150,6 +156,25 @@ textarea:focus-visible {
   background: #0e0e0e;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 0;
+}
+/* Interactive cells (links/buttons) get a subtle lift + accent edge on hover.
+   Static panels (div/section.cell) are untouched. */
+a.cell,
+button.cell {
+  transition:
+    transform 0.16s var(--ease),
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+a.cell:hover,
+button.cell:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+a.cell:active,
+button.cell:active {
+  transform: translateY(0);
 }
 /* plus-cross markers at the four corners (Firecrawl signature) */
 .cell::before,

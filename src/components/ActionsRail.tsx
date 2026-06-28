@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { ArrowRight, Check, Circle, Clock3, type LucideIcon } from "lucide-react";
 
 const DEFS = [
   { type: "slack", label: "Slack alert" },
@@ -7,6 +8,12 @@ const DEFS = [
   { type: "calendar", label: "Calendar invite" },
   { type: "email", label: "Outreach sent" },
 ];
+
+const STATUS_ICON: Record<string, LucideIcon> = {
+  done: Check,
+  pending: Clock3,
+  skipped: ArrowRight,
+};
 
 export default function ActionsRail({
   actions,
@@ -42,10 +49,10 @@ export default function ActionsRail({
         {DEFS.map((d) => {
           const a = byType[d.type];
           const status = a?.status ?? "idle";
-          const confidence =
-            a?.confidence ??
-            (status === "done" ? 92 : status === "pending" ? 70 : status === "skipped" ? 45 : undefined);
-          const risk = a?.risk ?? (status === "skipped" ? "blocked" : status === "pending" ? "medium" : undefined);
+          // Only show confidence/risk when the action actually carries them.
+          const confidence = typeof a?.confidence === "number" ? a.confidence : null;
+          const risk = typeof a?.risk === "string" ? a.risk : null;
+          const Icon = STATUS_ICON[status] ?? Circle;
           return (
             <motion.div
               key={d.type}
@@ -63,17 +70,9 @@ export default function ActionsRail({
                         : "border-border bg-surface2 text-tertiary"
               }`}
             >
-              <span className="tabular-nums">
-                {status === "done"
-                  ? "✓"
-                  : status === "pending"
-                    ? "•"
-                    : status === "skipped"
-                      ? "→"
-                      : "○"}
-              </span>{" "}
+              <Icon size={11} strokeWidth={2.4} className="shrink-0" />
               {a?.system ?? d.label}
-              {confidence ? <span className="text-tertiary"> · {confidence}%</span> : null}
+              {confidence !== null ? <span className="text-tertiary"> · {confidence}%</span> : null}
               {risk ? <span className="text-tertiary"> · {risk} risk</span> : null}
             </motion.div>
           );

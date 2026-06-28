@@ -24,9 +24,9 @@ type ChatMessage = {
 
 const STARTERS = [
   "What should I do next?",
+  "What did the agents do?",
   "Why is this account at risk?",
   "Who is missing from the committee?",
-  "Summarize this pipeline.",
 ];
 
 export default function AskQuorum({
@@ -53,7 +53,7 @@ export default function AskQuorum({
     {
       id: "welcome",
       role: "assistant",
-      body: "Ask me about pipeline risk, next moves, committee gaps, drafts, or customer setup. I’ll answer from Quorum’s live account brain.",
+      body: "Ask me about pipeline risk, next moves, committee gaps, drafts, or customer setup. I read your live account state to answer.",
       markers: ["ready", "account brain"],
     },
   ]);
@@ -61,6 +61,23 @@ export default function AskQuorum({
   function ask(text: string) {
     const question = text.trim();
     if (!question) return;
+    // Don't answer from a still-loading account context (would wrongly read as
+    // "workspace mode" on a deal page, or report zeroed counts).
+    const loading = (accountId && deal === undefined) || review === undefined;
+    if (loading) {
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), role: "user", body: question },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          body: "One moment, reading the live account state. Ask again in a second.",
+          markers: ["loading state"],
+        },
+      ]);
+      setDraft("");
+      return;
+    }
     const response = answerQuestion(question, {
       deal: deal && deal !== null ? deal : null,
       pipeline,
@@ -229,7 +246,9 @@ function answerQuestion(
 
   if (q.includes("pipeline") || (!deal && (q.includes("summarize") || q.includes("summary")))) {
     const active = pipeline.length;
-    const reviewCount = pipeline.filter((account) => account.status === "needs_review").length;
+    const reviewCount =
+      review?.counts?.pendingDrafts ??
+      pipeline.filter((account) => account.stage === "outreach").length;
     const actioned = pipeline.filter((account) => account.stage === "actioned").length;
     const pendingDrafts = review?.counts?.pendingDrafts ?? 0;
     const newest = pipeline[0];
@@ -258,10 +277,40 @@ function answerQuestion(
   const drafts = deal.drafts ?? [];
   const actions = deal.actions ?? [];
   const events = deal.events ?? [];
+  const agentRuns = deal.agentRuns ?? [];
   const progress = deriveProgress(deal);
   const stage = STAGES[progress.reached]?.label ?? "Enriched";
   const topMove = account?.moves?.top_move;
   const gaps = account?.graph?.gaps ?? [];
+
+  if (
+    q.includes("agent") ||
+    q.includes("receipt") ||
+    q.includes("trace") ||
+    q.includes("autonomous") ||
+    q.includes("what did") ||
+    q.includes("what changed")
+  ) {
+    const latestRun = agentRuns[0];
+    const steps = latestRun?.steps ?? [];
+    const completed = steps.filter((step: any) => step.status === "completed").length;
+    const blocked = steps.filter((step: any) => step.status === "blocked" || step.status === "failed").length;
+    const stepLines = steps
+      .slice(0, 5)
+      .map((step: any) => `• ${step.agent}: ${step.label}${step.tool ? ` via ${step.tool}` : ""}`)
+      .join("\n");
+
+    return {
+      body: latestRun
+        ? `Latest agent run: ${latestRun.goal}\n\n${latestRun.summary ?? "Run summary is still being written."}\n\n${stepLines}\n\nNet: ${completed} completed step${completed === 1 ? "" : "s"}, ${blocked} gated or blocked step${blocked === 1 ? "" : "s"}.`
+        : `No durable agent receipt exists for this older account yet, but the current state shows ${events.length} events, ${drafts.length} drafts, and ${actions.length} actions. New inbound and close-loop runs now write permanent receipts automatically.`,
+      markers: ["agent receipts checked", "tool trail read", "review gates preserved"],
+      actions: [
+        { label: "Open review queue", to: "/review" },
+        { label: "Connect destinations", to: "/integrations" },
+      ],
+    };
+  }
 
   if (q.includes("risk") || q.includes("at risk") || q.includes("why")) {
     const risk = account?.moves?.deal_status?.replace(/_/g, " ") ?? "watching";

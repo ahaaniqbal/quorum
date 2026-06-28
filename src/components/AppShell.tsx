@@ -5,17 +5,19 @@ import {
   Home as HomeIcon,
   LayoutDashboard,
   PlugZap,
-  Rocket,
+  Settings as SettingsIcon,
   Sparkles,
 } from "lucide-react";
 import Sidebar from "./Sidebar";
 import AskQuorum from "./AskQuorum";
+import ReactiveGrid from "./ReactiveGrid";
 
 export default function AppShell() {
   const [askOpen, setAskOpen] = useState(false);
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-bg">
+    <div className="relative flex h-[100dvh] overflow-hidden">
+      <ReactiveGrid />
       <div className="hidden md:block">
         <Sidebar onAskQuorum={() => setAskOpen(true)} />
       </div>
@@ -28,12 +30,15 @@ export default function AppShell() {
   );
 }
 
+// Mobile has no sidebar, so the bottom bar must reach the essential surfaces.
+// Setup is omitted here (it is a one-time checklist reachable from Home and
+// Integrations) so Settings has a home on mobile. Labels match the sidebar.
 const MOBILE_NAV = [
   { to: "/", label: "Home", icon: HomeIcon, end: true },
   { to: "/pipeline", label: "Pipeline", icon: LayoutDashboard },
   { to: "/review", label: "Review", icon: CheckCircle2 },
-  { to: "/setup", label: "Setup", icon: Rocket },
-  { to: "/integrations", label: "Systems", icon: PlugZap },
+  { to: "/integrations", label: "Integrations", icon: PlugZap },
+  { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 function MobileNav({ onAskQuorum }: { onAskQuorum: () => void }) {

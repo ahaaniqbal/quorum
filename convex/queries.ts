@@ -56,6 +56,22 @@ export const getAccountFull = query({
       .withIndex("by_account", (q) => q.eq("accountId", accountId))
       .collect();
 
+    const agentRuns = await ctx.db
+      .query("agentRuns")
+      .withIndex("by_account", (q) => q.eq("accountId", accountId))
+      .collect();
+    agentRuns.sort((a, b) => b.startedAt - a.startedAt);
+    const agentRunsWithSteps = await Promise.all(
+      agentRuns.map(async (run) => {
+        const steps = await ctx.db
+          .query("agentSteps")
+          .withIndex("by_run", (q) => q.eq("runId", run._id))
+          .collect();
+        steps.sort((a, b) => a.startedAt - b.startedAt);
+        return { ...run, steps };
+      })
+    );
+
     return {
       account,
       seller,
@@ -65,6 +81,7 @@ export const getAccountFull = query({
       events,
       actions,
       drafts,
+      agentRuns: agentRunsWithSteps,
       intelligence: buildAccountIntelligence({
         account,
         contacts,

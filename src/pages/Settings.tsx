@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { Check } from "lucide-react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import {
@@ -22,6 +23,8 @@ export default function Settings() {
     icp: "",
   });
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [autonomy, setAutonomy] = useState<AutonomyPrefs>(() => loadAutonomyPrefs());
   const [rulesSaved, setRulesSaved] = useState(false);
 
@@ -42,9 +45,18 @@ export default function Settings() {
   const setAutonomyMode = (mode: AutonomyMode) => setAutonomy((current) => ({ ...current, mode }));
 
   async function onSave() {
-    await save({ ...form, onboarded: true });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(false);
+    setSaving(true);
+    try {
+      await save({ ...form, onboarded: true });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaveError(true);
+      setTimeout(() => setSaveError(false), 3500);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function onSaveRules() {
@@ -75,7 +87,7 @@ export default function Settings() {
           <div className="mb-4 flex items-center gap-2">
             <span className="mono-label">Profile</span>
             <span className="text-[13px] text-secondary">
-              The AI rep pitches this on every call.
+              The AI rep uses this in every draft and call.
             </span>
           </div>
           <div className="space-y-3">
@@ -86,10 +98,19 @@ export default function Settings() {
             <Field label="Ideal customer" value={form.icp} onChange={set("icp")} />
           </div>
           <div className="mt-5 flex items-center gap-3">
-            <button onClick={onSave} className="btn-primary h-9 px-5">
-              Save changes
+            <button onClick={onSave} disabled={saving} className="btn-primary h-9 px-5">
+              {saving ? "Saving…" : "Save changes"}
             </button>
-            {saved && <span className="mono-label text-good">✓ saved</span>}
+            {saved && (
+              <span className="mono-label flex items-center gap-1 text-good">
+                <Check size={12} strokeWidth={2.4} /> saved
+              </span>
+            )}
+            {saveError && (
+              <span className="mono-label normal-case tracking-normal text-risk">
+                Could not save. Try again.
+              </span>
+            )}
           </div>
         </div>
 

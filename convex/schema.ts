@@ -72,6 +72,38 @@ export default defineSchema({
     payload: v.optional(v.any()),
   }).index("by_account", ["accountId"]),
 
+  agentRuns: defineTable({
+    accountId: v.id("accounts"),
+    userId: v.optional(v.id("users")),
+    trigger: v.string(), // "manual" | "bulk_ingest" | "webhook" | "review" | "demo"
+    goal: v.string(),
+    status: v.string(), // "running" | "completed" | "blocked" | "failed"
+    summary: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_account", ["accountId"])
+    .index("by_user", ["userId"]),
+
+  agentSteps: defineTable({
+    runId: v.id("agentRuns"),
+    accountId: v.id("accounts"),
+    agent: v.string(), // "ingest" | "research" | "committee" | "brain" | "outreach" | "actions"
+    type: v.string(), // "tool_call" | "reasoning" | "draft" | "approval_gate" | "external_action"
+    status: v.string(), // "running" | "completed" | "blocked" | "failed"
+    label: v.string(),
+    detail: v.optional(v.string()),
+    tool: v.optional(v.string()),
+    input: v.optional(v.any()),
+    output: v.optional(v.any()),
+    externalId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_run", ["runId"])
+    .index("by_account", ["accountId"]),
+
   actions: defineTable({
     accountId: v.id("accounts"),
     contactId: v.optional(v.id("contacts")),

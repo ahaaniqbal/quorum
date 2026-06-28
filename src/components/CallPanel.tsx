@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { CalendarCheck } from "lucide-react";
 import { copy } from "../copy";
 import Panel from "./Panel";
 
@@ -40,7 +41,9 @@ export default function CallPanel({
     onSend?.(t);
   }
   const qual = conversation?.qualification ?? null;
-  const booked = qual?.booked || conversation?.summary?.toLowerCase?.().includes("booked");
+  // Rely on the structured qualification flag, not a substring of the summary
+  // (a summary like "no meeting booked" must not read as booked).
+  const booked = qual?.booked === true;
   const score = qual?.score ?? 0;
 
   const statusPill =
@@ -59,7 +62,7 @@ export default function CallPanel({
         transition={{ ease: [0.175, 0.885, 0.32, 1.1] }}
         className="pill bg-good/15 text-good"
       >
-        ✓ Meeting booked
+        <CalendarCheck size={12} strokeWidth={2.4} /> Meeting booked
       </motion.span>
     ) : (
       <span className="mono-label tnum text-tertiary">

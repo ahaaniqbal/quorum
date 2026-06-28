@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import {
   CalendarClock,
+  Check,
   DatabaseZap,
   FileUp,
   Mail,
@@ -117,7 +118,7 @@ const CUSTOMER_INTEGRATIONS: {
 
 const STATUS_COPY: Record<StatusKey, { label: string; className: string; dot: string }> = {
   connected: {
-    label: "Connected",
+    label: "Configured",
     className: "bg-good/10 text-good",
     dot: "bg-good",
   },
@@ -174,7 +175,7 @@ export default function Integrations() {
           </h1>
         </div>
         <span className="mono-label tnum border border-border bg-surface/60 px-2 py-1 text-tertiary">
-          {totalConnected} connected · {connectedDestinations} / {actionDestinations.length} destinations
+          {totalConnected} configured · {connectedDestinations} / {actionDestinations.length} destinations
         </span>
       </header>
 
@@ -190,6 +191,10 @@ export default function Integrations() {
               <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-secondary">
                 This page only shows systems a Quorum customer connects: their CRM, mailbox,
                 calendar, team alerts, and inbound lead sources.
+              </p>
+              <p className="mt-1.5 max-w-2xl text-[12px] leading-relaxed text-tertiary">
+                Status is self-reported in this preview. Quorum still holds every customer-facing
+                action for your review before anything is sent.
               </p>
             </div>
             <Link className="btn-primary h-9 px-4" to="/setup">
@@ -287,7 +292,7 @@ export default function Integrations() {
                         : "border-border bg-surface text-text hover:border-border-strong"
                     }`}
                   >
-                    {isSetupConnected ? "Connected, mark off" : "Mark connected"}
+                    {isSetupConnected ? "Configured · undo" : "Mark as configured"}
                   </button>
                 )}
                 {isWebhook && (
@@ -295,9 +300,15 @@ export default function Integrations() {
                     <button
                       type="button"
                       onClick={copyWebhook}
-                      className="mt-3 h-9 w-full rounded border border-border bg-surface px-3 text-[12px] font-medium text-text transition-colors hover:border-border-strong"
+                      className="mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded border border-border bg-surface px-3 text-[12px] font-medium text-text transition-colors hover:border-border-strong"
                     >
-                      {copied ? "Webhook copied ✓" : "Copy webhook URL"}
+                      {copied ? (
+                        <>
+                          <Check size={13} strokeWidth={2.4} className="text-good" /> Webhook copied
+                        </>
+                      ) : (
+                        "Copy webhook URL"
+                      )}
                     </button>
                   ) : (
                     <Link
@@ -336,20 +347,7 @@ function LogoStack({
     return (
       <div className="flex h-12 w-[82px] shrink-0 items-center">
         {logos.slice(0, 2).map((logo, index) => (
-          <div
-            key={logo.domain}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center border border-[#e8e8e8] bg-white p-2 shadow-[0_7px_18px_rgba(0,0,0,0.28)] ring-1 ring-black/5 ${
-              index > 0 ? "-ml-4" : ""
-            }`}
-            style={{ zIndex: logos.length - index, transform: `translateY(${index === 0 ? -1 : 1}px)` }}
-            title={logo.name}
-          >
-            <img
-              src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(logo.domain)}&sz=128`}
-              alt={logo.name}
-              className="h-8 w-8 object-contain"
-            />
-          </div>
+          <LogoChip key={logo.domain} logo={logo} index={index} count={logos.length} />
         ))}
       </div>
     );
@@ -358,6 +356,38 @@ function LogoStack({
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-surface text-secondary">
       {Icon ? <Icon size={16} strokeWidth={1.9} /> : null}
+    </div>
+  );
+}
+
+function LogoChip({
+  logo,
+  index,
+  count,
+}: {
+  logo: { name: string; domain: string };
+  index: number;
+  count: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div
+      className={`flex h-12 w-12 shrink-0 items-center justify-center border border-[#e8e8e8] bg-white p-2 shadow-[0_7px_18px_rgba(0,0,0,0.28)] ring-1 ring-black/5 ${
+        index > 0 ? "-ml-4" : ""
+      }`}
+      style={{ zIndex: count - index, transform: `translateY(${index === 0 ? -1 : 1}px)` }}
+      title={logo.name}
+    >
+      {failed ? (
+        <span className="font-mono text-[14px] font-semibold text-[#333]">{logo.name[0]}</span>
+      ) : (
+        <img
+          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(logo.domain)}&sz=128`}
+          alt={logo.name}
+          onError={() => setFailed(true)}
+          className="h-8 w-8 object-contain"
+        />
+      )}
     </div>
   );
 }

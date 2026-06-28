@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQueries, useQuery } from "convex/react";
+import { ArrowRight } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ROLE_LABEL, timeAgo } from "../lib/format";
 import { loadJson, saveJson } from "../lib/preferences";
@@ -24,19 +25,8 @@ const ACTION_UNLOCK: Record<string, string> = {
 };
 
 export default function Review() {
-  const pipeline = useQuery(api.queries.listPipeline, {});
-  const accountQueries = useMemo(() => {
-    const entries = (pipeline ?? []).map((account: any) => [
-      account._id,
-      {
-        query: api.queries.getAccountFull,
-        args: { accountId: account._id as Id<"accounts"> },
-      },
-    ]);
-    return Object.fromEntries(entries);
-  }, [pipeline]);
-  const accountResults = useQueries(accountQueries);
-  const setDraftStatus = useMutation(api.mutations.setDraftStatus);
+  const reviewQueue = useQuery(api.queries.listReviewQueue, {});
+  const reviewDraft = useMutation(api.mutations.reviewDraft);
   const updateDraft = useMutation(api.mutations.updateDraft);
   const [filter, setFilter] = useState<DraftFilter>("pending");
   const [working, setWorking] = useState<string | null>(null);
@@ -47,7 +37,7 @@ export default function Review() {
   );
   const [notice, setNotice] = useState<string | null>(null);
 
-  const review = useMemo(() => buildReviewState(accountResults), [accountResults]);
+  const review = reviewQueue ?? { drafts: [], actions: [], counts: null };
   const drafts = review.drafts;
   const actions = review.actions;
   const counts = review.counts;
@@ -73,7 +63,7 @@ export default function Review() {
     }
     setWorking(`${draftId}:${status}`);
     try {
-      await setDraftStatus({ draftId, status });
+      await reviewDraft({ draftId, status });
     } finally {
       setWorking(null);
     }
@@ -84,25 +74,28 @@ export default function Review() {
     const body = edit.body.trim();
     if (!subject || !body) {
       setNotice("Subject and body are required.");
+      setTimeout(() => setNotice(null), 3000);
       return;
     }
     setWorking(`${draft._id}:save`);
-    const nextEdits = { ...draftEdits, [draft._id]: { subject, body } };
     try {
+      // Only mirror the edit locally and close the editor once the server save
+      // actually succeeds, so a reviewer never approves text that did not persist.
       await updateDraft({ draftId: draft._id, subject, body });
-      setNotice("Draft saved.");
-    } catch {
-      setNotice("Draft saved locally. Deploy backend functions to persist edits server-side.");
-    } finally {
+      const nextEdits = { ...draftEdits, [draft._id]: { subject, body } };
       setDraftEdits(nextEdits);
       saveJson("quorum.draftEdits", nextEdits);
       setEditId(null);
+      setNotice("Draft saved.");
+    } catch {
+      setNotice("Could not save the draft. Your changes are still here, try again.");
+    } finally {
       setWorking(null);
-      setTimeout(() => setNotice(null), 3000);
+      setTimeout(() => setNotice(null), 3500);
     }
   }
 
-  if (pipeline === undefined) return <Centered>Loading review queue…</Centered>;
+  if (reviewQueue === undefined) return <Centered>Loading review queue…</Centered>;
 
   return (
     <div className="dot-grid flex-1 overflow-y-auto">
@@ -223,16 +216,16 @@ export default function Review() {
 }
 
 function ActionAuditRow({ action }: { action: any }) {
-  const confidence =
-    action.confidence ??
-    (action.status === "done" ? 92 : action.status === "pending" ? 70 : action.status === "skipped" ? 45 : 52);
-  const risk = action.risk ?? (action.status === "skipped" ? "blocked" : action.status === "pending" ? "medium" : "low");
+  // Only surface confidence/risk when the action actually carries them. No
+  // synthesized telemetry on the surface whose whole job is honesty.
+  const confidence = typeof action.confidence === "number" ? action.confidence : null;
+  const risk = typeof action.risk === "string" ? action.risk : null;
   const blocker =
     action.audit?.lastError ??
     (action.requirements?.length ? `Requires ${action.requirements.join(", ")}.` : ACTION_UNLOCK[action.type] ?? "Check integration setup");
 
   return (
-    <div className="grid items-center gap-3 px-4 py-3 md:grid-cols-[180px_1fr_220px]">
+    <div className="grid items-center gap-3 px-4 py-3 md:grid-cols-[180px_1fr_200px]">
       <div className="min-w-0">
         <Link
           to={`/deal/${action.account._id}`}
@@ -250,17 +243,25 @@ function ActionAuditRow({ action }: { action: any }) {
           <span className="mono-label normal-case tracking-normal text-tertiary">
             {action.system ?? action.type}
           </span>
-          <span className="mono-label normal-case tracking-normal text-accent-soft">
-            {confidence}% confidence
-          </span>
-          <span className="mono-label normal-case tracking-normal text-warn">{risk} risk</span>
+          {confidence !== null && (
+            <span className="mono-label normal-case tracking-normal text-accent-soft">
+              {confidence}% confidence
+            </span>
+          )}
+          {risk && (
+            <span className="mono-label normal-case tracking-normal text-warn">{risk} risk</span>
+          )}
         </div>
         <p className="mt-1 truncate text-[12px] text-secondary">{action.label}</p>
         <p className="mt-1 text-[12px] leading-relaxed text-tertiary">{blocker}</p>
       </div>
-      <p className="mono-label normal-case tracking-normal text-tertiary md:text-right">
-        {ACTION_UNLOCK[action.type] ?? "Check integration setup"}
-      </p>
+      <Link
+        to="/integrations"
+        className="mono-label flex items-center justify-center gap-1.5 border border-border bg-surface px-3 py-2 normal-case tracking-normal text-secondary transition-colors hover:border-border-strong hover:text-text md:justify-end"
+      >
+        Connect to unlock
+        <ArrowRight size={12} strokeWidth={2.2} />
+      </Link>
     </div>
   );
 }
@@ -286,57 +287,6 @@ function Metric({
       <p className={`mt-2 font-mono text-[22px] tabular-nums ${toneClass}`}>{value}</p>
     </div>
   );
-}
-
-function buildReviewState(accountResults: Record<string, any>) {
-  const drafts: any[] = [];
-  const actions: any[] = [];
-
-  for (const result of Object.values(accountResults)) {
-    if (!result || result instanceof Error || !result.account) continue;
-    const contactById = new Map(
-      (result.contacts ?? []).map((contact: any) => [String(contact._id), contact])
-    );
-    for (const draft of result.drafts ?? []) {
-      drafts.push({
-        ...draft,
-        account: {
-          _id: result.account._id,
-          companyName: result.account.companyName,
-          domain: result.account.domain,
-          logoUrl: result.account.logoUrl,
-        },
-        contact: contactById.get(String(draft.contactId)) ?? null,
-      });
-    }
-    for (const action of result.actions ?? []) {
-      if (!["pending", "failed", "skipped"].includes(action.status)) continue;
-      actions.push({
-        ...action,
-        account: {
-          _id: result.account._id,
-          companyName: result.account.companyName,
-          domain: result.account.domain,
-          logoUrl: result.account.logoUrl,
-        },
-      });
-    }
-  }
-
-  drafts.sort((a, b) => b._creationTime - a._creationTime);
-  actions.sort((a, b) => b._creationTime - a._creationTime);
-
-  return {
-    drafts,
-    actions,
-    counts: {
-      pendingDrafts: drafts.filter((draft) => draft.status === "draft").length,
-      approvedDrafts: drafts.filter((draft) => draft.status === "approved").length,
-      skippedDrafts: drafts.filter((draft) => draft.status === "skipped").length,
-      sentDrafts: drafts.filter((draft) => draft.status === "sent").length,
-      actionIssues: actions.length,
-    },
-  };
 }
 
 function StatusPill({ status }: { status: string }) {

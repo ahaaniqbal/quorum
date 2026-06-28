@@ -42,6 +42,7 @@
 - Run the app with `npm run dev`.
 - Run Convex + web together with `npm run dev:all`.
 - Validate production build with `npm run build`.
+- Run product invariant smoke checks with `npm run smoke`.
 
 ## Collaboration Notes
 - Keep changes focused and surgical unless the user asks for a broader product push.
