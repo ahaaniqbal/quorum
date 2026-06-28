@@ -47,11 +47,19 @@ export default function ActionsRail({
                     ? "border-warn/30 bg-warn/10 text-warn"
                     : status === "failed"
                       ? "border-risk/30 bg-risk/10 text-risk"
-                      : "border-border bg-surface2 text-tertiary"
+                      : status === "skipped"
+                        ? "border-border bg-surface2 text-secondary"
+                        : "border-border bg-surface2 text-tertiary"
               }`}
             >
               <span className="tabular-nums">
-                {status === "done" ? "✓" : status === "pending" ? "•" : "○"}
+                {status === "done"
+                  ? "✓"
+                  : status === "pending"
+                    ? "•"
+                    : status === "skipped"
+                      ? "→"
+                      : "○"}
               </span>{" "}
               {a?.label ?? d.label}
             </motion.div>

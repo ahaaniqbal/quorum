@@ -70,28 +70,72 @@ export const fireActions = mutation({
 export const complete = internalAction({
   args: { accountId: v.id("accounts"), type: v.string(), label: v.string() },
   handler: async (ctx, { accountId, type, label }) => {
-    let externalId: string | undefined;
-    let status = "done";
+    const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+    const account = data?.account;
+    const contacts = data?.contacts ?? [];
+    const primary = contacts.find((c: any) => c.isPrimary) ?? contacts[0];
+    const committee = contacts.filter((c: any) => !c.isPrimary).length;
 
-    if (type === "slack" && process.env.COMPOSIO_API_KEY) {
-      const res = await trySlackViaComposio(label).catch(() => null);
-      if (res?.id) externalId = res.id;
-    }
+    let result: { ok: boolean; id?: string } = { ok: false };
 
-    if (type === "email" && process.env.AGENTMAIL_API_KEY) {
+    if (type === "slack") {
+      result = await execComposio("SLACK_SENDS_A_MESSAGE_TO_A_SLACK_CHANNEL", {
+        channel: process.env.SLACK_CHANNEL ?? "#revenue",
+        text: `:tada: ${account?.companyName ?? "Account"} qualified — meeting booked. Buying committee of ${committee} mapped. (via Quorum)`,
+      });
+    } else if (type === "hubspot") {
+      result = await execComposio("HUBSPOT_CREATE_CONTACT_OBJECT_WITH_PROPERTIES", {
+        email: primary?.email,
+        firstname: (primary?.name ?? "").split(" ")[0],
+        lastname: (primary?.name ?? "").split(" ").slice(1).join(" "),
+        company: account?.companyName,
+      });
+    } else if (type === "calendar") {
+      result = await execComposio("GOOGLECALENDAR_CREATE_EVENT", {
+        summary: `Quorum pilot — ${account?.companyName}`,
+        description: `Qualification follow-up with ${primary?.name ?? "the prospect"}.`,
+        attendees: primary?.email ? [primary.email] : [],
+      });
+    } else if (type === "email") {
       const sent = await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
-      if (sent > 0) externalId = `sent:${sent}`;
+      result = sent > 0 ? { ok: true, id: `sent:${sent}` } : { ok: false };
     }
 
+    const status = result.ok ? "done" : "skipped";
+    const finalLabel = result.ok ? label : `${label} · connect to enable`;
     await ctx.runMutation(internal.closeLoop.markDone, {
       accountId,
       type,
-      label,
+      label: finalLabel,
       status,
-      externalId,
+      externalId: result.id,
     });
   },
 });
+
+// Execute a Composio tool for real. Returns ok:false when no account is
+// connected for that toolkit (the honest "needs connection" state).
+async function execComposio(
+  slug: string,
+  args: any
+): Promise<{ ok: boolean; id?: string }> {
+  const key = process.env.COMPOSIO_API_KEY;
+  if (!key) return { ok: false };
+  try {
+    const res = await fetch(`https://backend.composio.dev/api/v3/tools/execute/${slug}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key },
+      body: JSON.stringify({ user_id: "default", arguments: args }),
+    });
+    const j: any = await res.json().catch(() => ({}));
+    if (res.ok && j?.successful !== false && !j?.error) {
+      return { ok: true, id: String(j?.data?.ts ?? j?.data?.id ?? "ok") };
+    }
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
 
 export const markDone = internalMutation({
   args: {
@@ -117,7 +161,7 @@ export const markDone = internalMutation({
     await ctx.db.insert("events", {
       accountId: a.accountId,
       type: "action_fired",
-      label: `✓ ${a.label}`,
+      label: a.status === "done" ? `✓ ${a.label}` : a.label,
     });
   },
 });
@@ -129,7 +173,7 @@ export const finish = internalMutation({
     await ctx.db.insert("events", {
       accountId,
       type: "action_fired",
-      label: "Loop closed — every action fired across the stack",
+      label: "Action loop complete",
     });
     // Sync the account brain to HydraDB (best-effort; no-op without a key).
     await ctx.scheduler.runAfter(300, internal.hydra.ingest, { accountId });
@@ -169,24 +213,3 @@ async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<numb
   return sent;
 }
 
-// Best-effort real Slack message via Composio. Endpoint/tool shape is wrapped in
-// try/catch; on any failure the action still completes (simulated). Wire the
-// exact Composio tool slug here once the connection is pre-authorized.
-async function trySlackViaComposio(text: string): Promise<{ id: string } | null> {
-  const key = process.env.COMPOSIO_API_KEY;
-  if (!key) return null;
-  try {
-    const res = await fetch("https://backend.composio.dev/api/v2/actions/SLACK_SENDS_A_MESSAGE_TO_A_SLACK_CHANNEL/execute", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": key },
-      body: JSON.stringify({
-        input: { channel: process.env.SLACK_CHANNEL ?? "#revenue", text },
-      }),
-    });
-    if (!res.ok) return null;
-    const j: any = await res.json();
-    return { id: j?.data?.ts ?? j?.id ?? "sent" };
-  } catch {
-    return null;
-  }
-}
