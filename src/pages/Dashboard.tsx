@@ -20,14 +20,17 @@ export default function Dashboard() {
     accountId ? { accountId: accountId as Id<"accounts"> } : "skip"
   );
 
-  const startSimulatedCall = useMutation(api.voice.startSimulatedCall);
+  const startCall = useAction(api.voice.startCall);
+  const replyToCall = useAction(api.voice.replyToCall);
+  const endCall = useAction(api.voice.endCall);
   const mapCommittee = useAction(api.committee.mapCommittee);
   const generateOutreach = useAction(api.outreach.generateOutreach);
   const fireActions = useMutation(api.closeLoop.fireActions);
-  const startRethread = useMutation(api.rethread.startRethread);
+  const startRethread = useAction(api.rethread.startRethread);
 
   const [autopilot, setAutopilot] = useState(true);
   const [rethreading, setRethreading] = useState(false);
+  const [sending, setSending] = useState(false);
   const runningRef = useRef<string | null>(null);
 
   // Reset the autopilot guard when navigating between deals.
@@ -63,7 +66,7 @@ export default function Dashboard() {
     runningRef.current = action;
     try {
       if (action === "call" && primary)
-        await startSimulatedCall({ contactId: primary._id });
+        await startCall({ contactId: primary._id });
       else if (action === "committee") await mapCommittee({ accountId: account._id });
       else if (action === "outreach") await generateOutreach({ accountId: account._id });
       else if (action === "actions") await fireActions({ accountId: account._id });
@@ -136,7 +139,20 @@ export default function Dashboard() {
           conversation={convo}
           transcript={data.transcript}
           callState={callState}
+          sending={sending}
           onStartCall={() => fire("call")}
+          onSend={async (text: string) => {
+            if (!convo) return;
+            setSending(true);
+            try {
+              await replyToCall({ conversationId: convo._id, text });
+            } finally {
+              setSending(false);
+            }
+          }}
+          onEndCall={async () => {
+            if (convo) await endCall({ conversationId: convo._id });
+          }}
         />
         <DealMap
           contacts={contacts}

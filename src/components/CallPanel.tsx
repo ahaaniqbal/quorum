@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Panel from "./Panel";
 
@@ -12,13 +13,31 @@ export default function CallPanel({
   conversation,
   transcript,
   onStartCall,
+  onSend,
+  onEndCall,
+  sending,
   callState,
 }: {
   conversation: any;
   transcript: any[];
   onStartCall?: () => void;
+  onSend?: (text: string) => void;
+  onEndCall?: () => void;
+  sending?: boolean;
   callState: "idle" | "connecting" | "live" | "ended";
 }) {
+  const [draft, setDraft] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [transcript.length, sending]);
+
+  function send() {
+    const t = draft.trim();
+    if (!t || sending) return;
+    setDraft("");
+    onSend?.(t);
+  }
   const qual = conversation?.qualification ?? null;
   const booked = qual?.booked || conversation?.summary?.toLowerCase?.().includes("booked");
   const score = qual?.score ?? 0;
@@ -77,7 +96,7 @@ export default function CallPanel({
       </div>
 
       {/* Transcript */}
-      <div className="flex-1 space-y-2.5 overflow-y-auto p-4">
+      <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto p-4">
         {transcript.length === 0 && callState !== "live" && (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
             <div className="dot-grid flex h-14 w-14 items-center justify-center rounded-full border border-border">
@@ -123,9 +142,52 @@ export default function CallPanel({
             </motion.div>
           ))}
         </AnimatePresence>
+        {sending && (
+          <div className="flex justify-start">
+            <div className="flex items-center gap-1.5 rounded-lg rounded-tl-sm border border-border bg-surface2 px-3.5 py-2.5">
+              <span className="mono-label">Quorum Rep</span>
+              <span className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1 w-1 animate-pulse rounded-full bg-secondary"
+                    style={{ animationDelay: `${i * 150}ms` }}
+                  />
+                ))}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {conversation?.summary && callState !== "idle" && (
+      {/* Live conversation input — the prospect actually replies to the AI rep */}
+      {callState === "live" && onSend && (
+        <div className="border-t border-border p-3">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              rows={1}
+              placeholder="Reply to the rep as the prospect…"
+              className="max-h-24 min-h-[38px] flex-1 resize-none rounded border border-border bg-surface px-3 py-2 text-[13px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
+            />
+            <button onClick={send} disabled={sending || !draft.trim()} className="btn-primary h-[38px] px-3">
+              Send
+            </button>
+            <button onClick={onEndCall} className="btn-secondary h-[38px] px-3" title="End call & qualify">
+              End
+            </button>
+          </div>
+        </div>
+      )}
+
+      {conversation?.summary && callState === "ended" && (
         <div className="border-t border-border px-4 py-3">
           <p className="mono-label mb-1.5">Summary</p>
           <p className="text-[13px] leading-relaxed text-secondary">{conversation.summary}</p>

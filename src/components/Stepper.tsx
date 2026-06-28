@@ -76,11 +76,15 @@ export default function Stepper({
           <div className="flex items-center gap-1.5 rounded border border-border bg-surface px-2 py-1">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                autopilot ? "animate-pulse bg-accent" : "bg-tertiary"
+                callLive ? "animate-pulse bg-good" : autopilot ? "animate-pulse bg-accent" : "bg-tertiary"
               }`}
             />
             <span className="mono-label normal-case tracking-normal text-secondary">
-              {autopilot ? (callLive ? "autopilot · on call" : "autopilot running") : "paused"}
+              {callLive
+                ? "live call · your turn to reply"
+                : autopilot
+                  ? "autopilot running"
+                  : "paused"}
             </span>
           </div>
         )}
