@@ -33,7 +33,10 @@ export default function Landing() {
   return (
     <div className="grid-lines relative flex min-h-screen flex-col overflow-hidden bg-bg">
       {/* corner mono labels */}
-      <div className="pointer-events-none absolute left-5 top-4 mono-label">QUORUM // GTM</div>
+      <div className="pointer-events-none absolute left-5 top-4 flex items-center gap-2">
+        <img src="/quorum-logo.svg" alt="Quorum" className="h-3.5 w-auto" />
+        <span className="mono-label">GTM</span>
+      </div>
       <div className="pointer-events-none absolute right-5 top-4 mono-label">
         AI ACCOUNT EXECUTIVE
       </div>
@@ -55,14 +58,8 @@ export default function Landing() {
           transition={{ duration: 0.5, ease: [0.175, 0.885, 0.32, 1.1] }}
           className="w-full max-w-xl"
         >
-          <div className="mb-7 flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded border border-border">
-              <div
-                className="h-3 w-3 rounded-full border-[1.5px]"
-                style={{ borderColor: "var(--accent)" }}
-              />
-            </div>
-            <span className="text-[14px] font-semibold tracking-tight">Quorum</span>
+          <div className="mb-7 flex items-center">
+            <img src="/quorum-logo.svg" alt="Quorum" className="h-6 w-auto" />
           </div>
 
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1">

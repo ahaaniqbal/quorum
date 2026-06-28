@@ -241,7 +241,7 @@ export default function Onboarding({
     <div className="grid-lines relative min-h-screen overflow-x-hidden bg-bg text-text">
       <div className="border-b border-border bg-bg">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
-          <div className="mono-label text-text">QUORUM</div>
+          <img src="/quorum-logo.svg" alt="Quorum" className="h-4 w-auto" />
           <div className="mono-label tnum text-tertiary">FIRST RUN · STEP {step + 1} / 4</div>
         </div>
       </div>

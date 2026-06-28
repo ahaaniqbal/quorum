@@ -58,9 +58,7 @@ export default function Sidebar({ onAskQuorum }: { onAskQuorum?: () => void }) {
     <aside className="flex h-screen w-[236px] shrink-0 flex-col border-r border-border bg-[#0b0b0a]">
       {/* Brand */}
       <div className="flex h-12 items-center border-b border-border px-4">
-        <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.28em] text-text">
-          QUORUM
-        </p>
+        <img src="/quorum-logo.svg" alt="Quorum" className="h-5 w-auto" />
       </div>
 
       <div className="border-b border-border px-2 py-2">
