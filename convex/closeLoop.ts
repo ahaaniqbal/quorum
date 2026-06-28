@@ -56,7 +56,7 @@ export const fireActions = mutation({
       {
         type: "slack",
         system: "Slack",
-        label: `Slack → #revenue: ${company} qualified, meeting booked`,
+        label: `Slack: ${company} qualified, meeting booked`,
         confidence: 84,
         risk: "low",
         requirements: ["Composio API key", "Slack connected account", "Revenue channel"],
@@ -196,6 +196,10 @@ export const complete = internalAction({
         summary: `Quorum pilot: ${account?.companyName}`,
         description: `Qualification follow-up with ${primary?.name ?? "the prospect"}.`,
         attendees: primary?.email ? [primary.email] : [],
+        // Google requires a start; book the next Thursday 11:00 (matches the action label).
+        start_datetime: nextThursdayAt11(),
+        event_duration_minutes: 30,
+        timezone: "America/Los_Angeles",
       });
     } else if (type === "email") {
       const sent = await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
@@ -238,6 +242,18 @@ export const complete = internalAction({
     }
   },
 });
+
+// Next Thursday at 11:00, as a naive datetime (YYYY-MM-DDTHH:MM:SS, no offset).
+// Composio's GOOGLECALENDAR_CREATE_EVENT requires start_datetime; timezone is sent
+// separately so the naive time is interpreted in the seller's working hours.
+function nextThursdayAt11(): string {
+  const now = new Date();
+  let add = (4 - now.getUTCDay() + 7) % 7; // 4 = Thursday
+  if (add === 0) add = 7;
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + add));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T11:00:00`;
+}
 
 function systemName(type: string): string {
   if (type === "email") return "AgentMail";

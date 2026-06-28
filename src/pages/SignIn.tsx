@@ -118,7 +118,7 @@ export default function SignIn() {
               placeholder="Password (8+ characters)"
               className="h-10 w-full border border-border bg-surface px-3 font-mono text-[13px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
             />
-            {error && <p className="text-[12px] text-risk">{error}</p>}
+            {error && <p className="text-[12px] text-warn">{error}</p>}
             <button
               type="submit"
               disabled={loading !== null}

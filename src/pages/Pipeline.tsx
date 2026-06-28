@@ -148,7 +148,12 @@ export default function Pipeline() {
     // Fold any half-typed address in before working.
     const pending = parseEmails(draft).valid;
     const all = Array.from(new Set([...emails, ...pending]));
-    if (all.length === 0) return setError(copy.edge.invalidEmail);
+    if (all.length === 0) {
+      // Distinguish "all personal/free addresses" (valid but un-enrichable) from
+      // genuinely malformed input, so the sample CTA can offer a way forward.
+      const { skipped } = parseEmails(draft);
+      return setError(skipped > 0 ? copy.edge.personalEmail : copy.edge.invalidEmail);
+    }
     setError(null);
     setDraft("");
     // One email → open the deal. Many → fan out and let them stream in.

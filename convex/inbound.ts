@@ -61,7 +61,11 @@ export const workLead = internalAction({
     // Draft once verified committee members have landed. If no one is verified,
     // keep the account grounded and wait for a call/manual confirmation.
     if (mapped > 0) {
-      await ctx.scheduler.runAfter(8000, internal.outreach.generateOutreachAutonomous, {
+      // Committee inserts land on a stagger (first at 350ms, +750ms each, finish
+      // at +300ms). Schedule outreach AFTER the last member lands so drafts never
+      // run against a partially-populated committee, with a safety buffer.
+      const committeeFinishMs = 350 + mapped * 750 + 300 + 1500;
+      await ctx.scheduler.runAfter(committeeFinishMs, internal.outreach.generateOutreachAutonomous, {
         accountId: accountId as any,
       });
       await ctx.runMutation(internal.agentTrace.recordStep, {

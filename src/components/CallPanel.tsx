@@ -73,7 +73,7 @@ export default function CallPanel({
   return (
     <Panel label="Live Call" index="02" desc={copy.panels.call.desc} right={statusPill}>
       {/* Scorecard */}
-      <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3">
+      <div className="grid grid-cols-2 gap-3 border-b border-border px-4 py-3 sm:grid-cols-4">
         {PILLARS.map((p) => {
           const s = qual?.[p.key]?.score ?? 0;
           return (

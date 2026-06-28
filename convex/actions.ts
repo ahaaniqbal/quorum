@@ -194,6 +194,10 @@ export const enrichFromEmail = action({
     // A signed-in caller always wins (can't be spoofed). asUserId is only honored
     // when there is no auth context, i.e. server-side ingestion via the scheduler
     // or the inbound webhook, which resolve the owner from a token.
+    // Reject malformed input before it becomes a junk account/contact.
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      throw new Error("Enter a valid work email address.");
+    }
     const authed = await getAuthUserId(ctx);
     const userId = authed ?? asUserId ?? null;
     const domain = parseDomain(email);
@@ -240,8 +244,8 @@ export const enrichFromEmail = action({
 
     // Fold the Orange Slice LinkedIn snapshot into signals + firmographics.
     const signals = [...(company.signals ?? [])];
-    if (osValid && os!.followers! > 1000)
-      signals.unshift(`${Math.round(os!.followers! / 1000)}K LinkedIn followers`);
+    if (osValid && os!.followers)
+      signals.unshift(`${Math.round(os!.followers / 1000)}K LinkedIn followers`);
 
     const source = fiber ? "fiber" : isKnown ? "curated" : "derived";
     const enrichment = {

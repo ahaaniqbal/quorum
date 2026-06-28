@@ -1,4 +1,4 @@
-import { action, mutation, internalAction } from "./_generated/server";
+import { action, internalAction, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
@@ -88,8 +88,11 @@ async function openAIDraft(
         ],
       }),
     });
+    if (!res.ok) return null;
     const j: any = await res.json();
-    const parsed = JSON.parse(j.choices[0].message.content);
+    const content = j?.choices?.[0]?.message?.content;
+    if (!content) return null;
+    const parsed = JSON.parse(content);
     if (parsed.subject && parsed.body) return parsed;
     return null;
   } catch {
@@ -190,7 +193,7 @@ export const generateOutreachAutonomous = internalAction({
         (data.latestConversation?.summary ? 8 : 0) +
         (account.enrichment?.source === "fiber" ? 10 : account.enrichment?.source === "derived" ? -10 : 2) +
         70;
-      await ctx.runMutation(api.outreach.saveDraft, {
+      await ctx.runMutation(internal.outreach.saveDraft, {
         accountId,
         contactId: contact._id as any,
         subject: draft.subject,
@@ -223,7 +226,7 @@ export const generateOutreachAutonomous = internalAction({
 });
 
 // Save a draft + flip the contact to "contacted" + log a per-member event.
-export const saveDraft = mutation({
+export const saveDraft = internalMutation({
   args: {
     accountId: v.id("accounts"),
     contactId: v.id("contacts"),

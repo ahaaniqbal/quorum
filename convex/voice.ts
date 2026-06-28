@@ -1,7 +1,14 @@
 import { action, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { openaiChat, type ChatMessage } from "./lib/openai";
+
+// Owner gate shared by the public context queries: public/demo accounts
+// (no userId) stay open; an owned account is only visible to its owner.
+function accountVisible(account: any, userId: string | null): boolean {
+  return !account?.userId || account.userId === userId;
+}
 import { voiceRepPrompt } from "./lib/prompts";
 
 // Build the rep's system prompt: personalized to the seller, primed to discover
@@ -42,6 +49,7 @@ export const getContactContext = query({
     const contact = await ctx.db.get(contactId);
     if (!contact) return null;
     const account = await ctx.db.get(contact.accountId);
+    if (!accountVisible(account, await getAuthUserId(ctx))) return null;
     const seller = await sellerFor(ctx, account);
     return { contact, account, seller };
   },
@@ -54,6 +62,7 @@ export const getConvoContext = query({
     if (!conversation) return null;
     const contact = await ctx.db.get(conversation.contactId);
     const account = await ctx.db.get(conversation.accountId);
+    if (!accountVisible(account, await getAuthUserId(ctx))) return null;
     const seller = await sellerFor(ctx, account);
     const transcript = await ctx.db
       .query("transcriptLines")

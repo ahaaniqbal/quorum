@@ -219,7 +219,7 @@ export function buildAccountIntelligence({
     gaps: gaps.slice(0, 5),
     risks: risks.slice(0, 5),
     checklist: [
-      { label: "Company source", done: enrichment.source && enrichment.source !== "derived" },
+      { label: "Company source", done: Boolean(enrichment.source && enrichment.source !== "derived") },
       { label: "Primary verified", done: Boolean(primary?.enrichment?.linkedin) },
       { label: "Committee mapped", done: committee.length >= 3 },
       { label: "Drafts ready", done: drafts.length > 0 },

@@ -430,7 +430,7 @@ function ProfileStep({
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <Field label="Your name" value={form.name} onChange={set("name")} placeholder="Ahaan Iqbal" autoFocus />
+          <Field label="Your name" value={form.name} onChange={set("name")} placeholder="Alex Rivera" autoFocus />
           <Field label="Company" value={form.companyName} onChange={set("companyName")} placeholder="Quorum" />
           <Field
             label="What you sell"
