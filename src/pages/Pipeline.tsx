@@ -1,47 +1,114 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
 import { STAGES, STAGE_INDEX } from "../lib/stages";
 import { timeAgo } from "../lib/format";
 import { copy } from "../copy";
 
-const SAMPLES = ["eric@ramp.com", "dylan@figma.com", "patrick@stripe.com", "alex@linear.app"];
 const FREE_DOMAINS = new Set([
   "gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotmail.com",
   "proton.me", "protonmail.com", "aol.com", "live.com", "msn.com", "me.com",
 ]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// A realistic "morning inbound" burst — varied real B2B companies Quorum works
+// in parallel, so the rep never types one at a time.
+const BURST = [
+  "ceo@rippling.com", "gtm@brex.com", "sales@airtable.com", "ops@retool.com",
+  "revenue@deel.com", "founder@mercury.com", "head@vanta.com", "lead@census.com",
+];
+
+function parseEmails(text: string): { valid: string[]; skipped: number } {
+  const all = text.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const seen = new Set<string>();
+  const valid: string[] = [];
+  let skipped = 0;
+  for (const e of all) {
+    if (!EMAIL_RE.test(e)) continue;
+    if (FREE_DOMAINS.has(e.split("@")[1])) { skipped++; continue; }
+    if (!seen.has(e)) { seen.add(e); valid.push(e); }
+  }
+  return { valid, skipped };
+}
+
 export default function Pipeline() {
   const navigate = useNavigate();
   const enrich = useAction(api.actions.enrichFromEmail);
+  const bulkIngest = useMutation(api.inbound.bulkIngest);
+  const ensureToken = useAction(api.inbound.ensureIngestToken);
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
   const sampleId = useQuery(api.queries.getSampleAccountId, {});
-  const [email, setEmail] = useState("");
+  const ingest = useQuery(api.inbound.getIngestInfo, {});
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const webhookUrl = ingest?.url ?? null;
 
   function openSample() {
     if (sampleId) navigate(`/deal/${sampleId}`);
   }
 
-  async function onStart(e: React.FormEvent) {
+  async function onRun(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = email.trim();
-    const domain = trimmed.split("@")[1]?.toLowerCase();
-    if (!EMAIL_RE.test(trimmed)) return setError(copy.edge.invalidEmail);
-    if (domain && FREE_DOMAINS.has(domain)) return setError(copy.edge.personalEmail);
+    const { valid, skipped } = parseEmails(text);
+    if (valid.length === 0)
+      return setError(skipped ? copy.edge.personalEmail : copy.edge.invalidEmail);
     setError(null);
+    // One email → open the deal. Many → fan out and let them stream in.
+    if (valid.length === 1) {
+      setLoading(true);
+      try {
+        const accountId = await enrich({ email: valid[0] });
+        navigate(`/deal/${accountId}`);
+      } catch {
+        setError(copy.edge.genericError);
+        setLoading(false);
+      }
+      return;
+    }
+    await runBatch(valid);
+  }
+
+  async function runBatch(emails: string[]) {
     setLoading(true);
     try {
-      const accountId = await enrich({ email: trimmed });
-      navigate(`/deal/${accountId}`);
-    } catch (err: any) {
-      // Never dead-end: surface a friendly note, keep the judge moving.
+      const { queued } = await bulkIngest({ emails });
+      setWorking(queued);
+      setText("");
+      setTimeout(() => setWorking(null), 60000);
+    } catch {
       setError(copy.edge.genericError);
+    } finally {
       setLoading(false);
+    }
+  }
+
+  async function generateHook() {
+    setMinting(true);
+    try {
+      // Mints + stores the token; the reactive getIngestInfo query fills in the URL.
+      await ensureToken();
+    } catch {
+      /* no-op */
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  async function copyHook() {
+    if (!webhookUrl) return;
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* no-op */
     }
   }
 
@@ -59,45 +126,58 @@ export default function Pipeline() {
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-7">
-        {/* New inbound entry */}
+        {/* Inbound entry */}
         <div className="cell p-5">
           <span className="plus plus-tl" />
           <span className="plus plus-tr" />
           <span className="plus plus-bl" />
           <span className="plus plus-br" />
           <div className="mb-3 flex items-center gap-2">
-            <span className="mono-label">New inbound</span>
+            <span className="mono-label">Inbound</span>
             <span className="text-[13px] text-secondary">
-              — drop a work email, Quorum works the whole account.
+              — Quorum works every lead automatically. Paste a batch, connect a source, or take one
+              by hand.
             </span>
           </div>
-          <form onSubmit={onStart} noValidate className="flex gap-2">
-            <div className="relative flex-1">
-              <span className="mono-label pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2">
-                ▸
-              </span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                autoFocus
-                className="h-11 w-full rounded border border-border bg-surface pl-8 pr-4 font-mono text-[14px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
-              />
+          <form onSubmit={onRun} noValidate>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={"Paste inbound emails — one per line\nlead@acme.com\nfounder@beta.io"}
+              rows={3}
+              className="w-full resize-y rounded border border-border bg-surface px-3.5 py-2.5 font-mono text-[14px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
+                {loading ? "Working…" : "Work inbound →"}
+              </button>
+              <button
+                type="button"
+                onClick={() => runBatch(BURST)}
+                disabled={loading}
+                className="btn-secondary h-11 px-4"
+                title="Simulate a morning of inbound — Quorum works them all in parallel"
+              >
+                ↯ Simulate {BURST.length}-lead burst
+              </button>
+              <button
+                type="button"
+                onClick={openSample}
+                disabled={!sampleId}
+                className="btn-secondary h-11 px-4"
+                title={copy.pipeline.sampleHint}
+              >
+                {copy.pipeline.sampleCta}
+              </button>
             </div>
-            <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
-              {loading ? "Enriching…" : "Run Quorum →"}
-            </button>
-            <button
-              type="button"
-              onClick={openSample}
-              disabled={!sampleId}
-              className="btn-secondary h-11 px-4"
-              title={copy.pipeline.sampleHint}
-            >
-              {copy.pipeline.sampleCta}
-            </button>
           </form>
+          {working != null && (
+            <p className="mt-2.5 flex items-center gap-2 text-[12px] text-accent-soft">
+              <span className="h-3 w-3 animate-spin rounded-full border border-accent-soft border-t-transparent" />
+              Working {working} inbound{working === 1 ? "" : "s"} autonomously — enriching, mapping
+              committees, and drafting. They appear below as they land.
+            </p>
+          )}
           {error && (
             <p className="mt-2 text-[12px] text-warn">
               {error}
@@ -108,20 +188,33 @@ export default function Pipeline() {
               )}
             </p>
           )}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="mono-label">{copy.pipeline.sampleHint}</span>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="mono-label">try</span>
-            {SAMPLES.map((s) => (
+
+          {/* Inbound webhook — the real ingestion seam */}
+          <div className="mt-4 border-t border-border pt-3">
+            <div className="flex items-center gap-2">
+              <span className="mono-label">Inbound webhook</span>
+              <span className="text-[12px] text-tertiary">
+                point your form, CRM, or inbox here — every lead is worked on arrival.
+              </span>
+            </div>
+            {webhookUrl ? (
+              <div className="mt-2 flex items-center gap-2">
+                <code className="flex-1 truncate rounded border border-border bg-bg px-3 py-2 font-mono text-[12px] text-secondary">
+                  POST {webhookUrl}
+                </code>
+                <button onClick={copyHook} className="btn-secondary h-9 px-3 text-[12px]">
+                  {copied ? "Copied ✓" : "Copy"}
+                </button>
+              </div>
+            ) : (
               <button
-                key={s}
-                onClick={() => setEmail(s)}
-                className="chip transition-colors duration-150 hover:border-border-strong hover:text-text"
+                onClick={generateHook}
+                disabled={minting}
+                className="btn-secondary mt-2 h-9 px-3 text-[12px]"
               >
-                {s}
+                {minting ? "Generating…" : "Generate webhook URL"}
               </button>
-            ))}
+            )}
           </div>
         </div>
 
@@ -135,7 +228,7 @@ export default function Pipeline() {
           <div className="cell flex flex-col items-center gap-2 px-6 py-14 text-center">
             <p className="text-[14px] text-secondary">No accounts yet.</p>
             <p className="text-[13px] text-tertiary">
-              Drop a work email above to spin up your first account brain.
+              Simulate an inbound burst above — Quorum works them all into account brains.
             </p>
           </div>
         ) : (

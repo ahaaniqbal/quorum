@@ -1,5 +1,5 @@
 import { action, mutation } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
 type Contact = {
@@ -99,7 +99,9 @@ async function openAIDraft(
 export const generateOutreach = action({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<number> => {
-    const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+    // Unguarded load (see committee.mapCommittee) so autonomous ingestion can
+    // draft outreach with no auth context.
+    const data: any = await ctx.runQuery(internal.brain.getBrainData, { accountId });
     if (!data) return 0;
     const account = data.account;
     const seller: Seller = data.seller ?? null;

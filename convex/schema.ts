@@ -14,7 +14,10 @@ export default defineSchema({
     valueProp: v.optional(v.string()),
     icp: v.optional(v.string()), // ideal customer profile
     onboarded: v.boolean(),
-  }).index("by_user", ["userId"]),
+    ingestToken: v.optional(v.string()), // secret for the inbound webhook
+  })
+    .index("by_user", ["userId"])
+    .index("by_ingestToken", ["ingestToken"]),
 
   accounts: defineTable({
     userId: v.optional(v.id("users")), // owner (the seller)

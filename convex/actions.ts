@@ -163,9 +163,13 @@ export const autofillSeller = action({
 });
 
 export const enrichFromEmail = action({
-  args: { email: v.string() },
-  handler: async (ctx, { email }): Promise<string> => {
-    const userId = await getAuthUserId(ctx);
+  args: { email: v.string(), asUserId: v.optional(v.id("users")) },
+  handler: async (ctx, { email, asUserId }): Promise<string> => {
+    // A signed-in caller always wins (can't be spoofed). asUserId is only honored
+    // when there is no auth context — i.e. server-side ingestion via the scheduler
+    // or the inbound webhook, which resolve the owner from a token.
+    const authed = await getAuthUserId(ctx);
+    const userId = authed ?? asUserId ?? null;
     const domain = parseDomain(email);
     const isKnown = Boolean(KNOWN_COMPANIES[domain]);
     const base = KNOWN_COMPANIES[domain] ?? fallbackCompany(domain);

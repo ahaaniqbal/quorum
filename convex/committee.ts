@@ -18,7 +18,10 @@ const ROLE_LABEL: Record<string, string> = {
 export const mapCommittee = action({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<number> => {
-    const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+    // Unguarded load so this runs both for the signed-in autopilot and for
+    // server-side autonomous ingestion (no auth context). Account IDs are
+    // unguessable; the reactive dashboard query stays tenant-guarded.
+    const data: any = await ctx.runQuery(internal.brain.getBrainData, { accountId });
     if (!data) throw new Error("Account not found");
     const account = data.account;
 

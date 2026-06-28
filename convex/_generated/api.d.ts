@@ -16,6 +16,7 @@ import type * as closeLoop from "../closeLoop.js";
 import type * as committee from "../committee.js";
 import type * as http from "../http.js";
 import type * as hydra from "../hydra.js";
+import type * as inbound from "../inbound.js";
 import type * as lib_fiber from "../lib/fiber.js";
 import type * as lib_openai from "../lib/openai.js";
 import type * as lib_orangeslice from "../lib/orangeslice.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   committee: typeof committee;
   http: typeof http;
   hydra: typeof hydra;
+  inbound: typeof inbound;
   "lib/fiber": typeof lib_fiber;
   "lib/openai": typeof lib_openai;
   "lib/orangeslice": typeof lib_orangeslice;

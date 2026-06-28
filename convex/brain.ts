@@ -52,7 +52,15 @@ export const getBrainData = internalQuery({
           .withIndex("by_user", (q) => q.eq("userId", account.userId!))
           .first()
       : null;
-    return { account, contacts, seller };
+    const convos = await ctx.db
+      .query("conversations")
+      .withIndex("by_account", (q) => q.eq("accountId", accountId))
+      .collect();
+    const latestConversation =
+      convos
+        .filter((c) => c.status === "ended" && c.summary)
+        .sort((a, b) => b._creationTime - a._creationTime)[0] ?? null;
+    return { account, contacts, seller, latestConversation };
   },
 });
 
