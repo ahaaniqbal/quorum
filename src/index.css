@@ -5,9 +5,9 @@
 :root {
   color-scheme: dark;
   /* Quorum's fixed interactive accent (buttons, scores, links, focus) */
-  --accent: #5b47eb;
-  /* Per-company brand color — subtle touches only (top stripe, logo ring) */
-  --brand: #5b47eb;
+  --accent: #f97316;
+  /* Per-company brand color: subtle touches only (top stripe, logo ring) */
+  --brand: #f97316;
   --brand2: #0a0a0a;
   --ease: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 }
@@ -63,6 +63,12 @@ h3 {
   border-radius: 6px;
 }
 
+input:focus-visible,
+textarea:focus-visible {
+  box-shadow: none;
+  border-radius: 0;
+}
+
 @layer components {
   .mono-label {
     @apply font-mono text-[10px] uppercase tracking-[0.12em] text-tertiary;
@@ -83,6 +89,37 @@ h3 {
 }
 
 @layer utilities {
+  .bg-accent {
+    background-color: var(--accent) !important;
+  }
+  .bg-accent\/15 {
+    background-color: color-mix(in srgb, var(--accent) 15%, transparent) !important;
+  }
+  .bg-accent\/50 {
+    background-color: color-mix(in srgb, var(--accent) 50%, transparent) !important;
+  }
+  .text-accent {
+    color: var(--accent) !important;
+  }
+  .text-accent-soft {
+    color: #fdba74 !important;
+  }
+  .border-accent {
+    border-color: var(--accent) !important;
+  }
+  .border-accent-soft {
+    border-color: #fdba74 !important;
+  }
+  .border-accent\/30 {
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+  }
+  .border-accent\/40 {
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important;
+  }
+  .fill-accent-soft {
+    fill: #fdba74 !important;
+  }
+
   /* Firecrawl-style faint modular line grid */
   .grid-lines {
     background-image:

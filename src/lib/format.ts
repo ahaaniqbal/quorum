@@ -9,7 +9,7 @@ export const ROLE_LABEL: Record<string, string> = {
 export const ROLE_COLOR: Record<string, string> = {
   champion: "bg-accent/15 text-accent-soft border-accent/30",
   economic_buyer: "bg-good/10 text-good border-good/30",
-  technical: "bg-sky-500/10 text-sky-300 border-sky-500/30",
+  technical: "bg-warn/10 text-warn border-warn/30",
   user: "bg-secondary/10 text-secondary border-border",
   unknown: "bg-secondary/10 text-secondary border-border",
 };
@@ -34,7 +34,7 @@ export const EVENT_DOT: Record<string, string> = {
   transcript: "bg-secondary",
   call_ended: "bg-good",
   committee_mapped: "bg-accent",
-  outreach_drafted: "bg-sky-400",
+  outreach_drafted: "bg-warn",
   action_fired: "bg-warn",
   rethread: "bg-accent",
 };

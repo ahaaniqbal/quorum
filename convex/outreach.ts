@@ -18,7 +18,7 @@ type Seller = {
   valueProp?: string;
 } | null;
 
-// Persona-tuned templated email — deterministic fallback. Sells the seller's
+// Persona-tuned templated email: deterministic fallback. Sells the seller's
 // product (from their profile), not a hardcoded one.
 function templateDraft(
   contact: Contact,
@@ -33,28 +33,28 @@ function templateDraft(
   const value = seller?.valueProp ? ` ${seller.valueProp}.` : "";
   const angle: Record<string, { subject: string; hook: string; close: string }> = {
     economic_buyer: {
-      subject: `${companyName} — quick ROI on a ${co} pilot`,
+      subject: `${companyName}: quick ROI on a ${co} pilot`,
       hook: `Your team just ${signal.toLowerCase()}, which is exactly when ${product} pays off.${value} Most teams see payback inside a quarter.`,
       close: `Worth 20 minutes to walk through the economics?`,
     },
     technical: {
-      subject: `${co} × ${companyName} — integration & security overview`,
-      hook: `${product} fits cleanly into your existing stack — no rip-and-replace, scoped access, and a clean API.${value}`,
-      close: `Happy to send the security overview and an integration diagram — want me to?`,
+      subject: `${co} × ${companyName}: integration & security overview`,
+      hook: `${product} fits cleanly into your existing stack: no rip-and-replace, scoped access, and a clean API.${value}`,
+      close: `Happy to send the security overview and an integration diagram. Want me to?`,
     },
     user: {
       subject: `Helping the ${companyName} team with ${product}`,
-      hook: `${product} is built for teams like yours.${value} Rollout is light — most teams are live in days.`,
+      hook: `${product} is built for teams like yours.${value} Rollout is light. Most teams are live in days.`,
       close: `Open to a quick look at how it'd fit your workflow?`,
     },
     champion: {
-      subject: `Following up — ${companyName} + ${co}`,
+      subject: `Following up: ${companyName} + ${co}`,
       hook: `Great talking things through. ${product} is exactly the leverage we discussed.${value}`,
       close: `I'll bring a tailored pilot plan to our next call.`,
     },
   };
   const a = angle[contact.role] ?? angle.user;
-  const body = `Hi ${first},\n\n${a.hook}\n\nContext from our side: ${callOutcome}\n\n${a.close}\n\n— ${seller?.name ?? "The team"}${seller?.companyName ? `, ${seller.companyName}` : ""}`;
+  const body = `Hi ${first},\n\n${a.hook}\n\nContext from our side: ${callOutcome}\n\n${a.close}\n\n${seller?.name ?? "The team"}${seller?.companyName ? `, ${seller.companyName}` : ""}`;
   return { subject: a.subject, body };
 }
 
@@ -109,7 +109,7 @@ export const generateOutreach = action({
       account.enrichment?.signals?.[0] ?? "is scaling its GTM team";
     const callOutcome: string =
       data.latestConversation?.summary ??
-      "We qualified your colleague on a live call and booked a follow-up — strong fit on speed-to-lead and multi-threading.";
+      "We qualified your colleague on a live call and booked a follow-up. Strong fit on speed-to-lead and multi-threading.";
 
     const committee: Contact[] = data.contacts.filter((c: Contact) => !c.isPrimary);
     if (committee.length === 0) return 0;

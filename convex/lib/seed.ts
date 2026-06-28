@@ -45,7 +45,7 @@ export const KNOWN_COMPANIES: Record<string, SeedCompany> = {
         email: "ckennedy@ramp.com",
         role: "economic_buyer",
         persona:
-          "Owns the GTM budget and revenue number. Cares about pipeline efficiency, rep productivity, and payback period. Ex-Stripe, ex-Amex — speaks ROI.",
+          "Owns the GTM budget and revenue number. Cares about pipeline efficiency, rep productivity, and payback period. Ex-Stripe, ex-Amex. Speaks ROI.",
         linkedin: "https://www.linkedin.com/in/colinkennedypartnerships",
       },
       {
@@ -77,7 +77,7 @@ export const KNOWN_COMPANIES: Record<string, SeedCompany> = {
     signals: ["Series B led by Accel", "Expanding enterprise motion", "Hiring first RevOps"],
     brandColors: ["#5E6AD2", "#0F0F0F"],
     summary:
-      "Linear is moving upmarket into enterprise and just hired its first RevOps leader — a textbook moment for multi-threaded, committee-aware selling.",
+      "Linear is moving upmarket into enterprise and just hired its first RevOps leader, a textbook moment for multi-threaded, committee-aware selling.",
     committee: [
       {
         name: "Cristina Cordova",
@@ -85,7 +85,7 @@ export const KNOWN_COMPANIES: Record<string, SeedCompany> = {
         email: "cristina@linear.app",
         role: "economic_buyer",
         persona:
-          "Leads GTM and Operations — owns the revenue tooling budget. Ex-Stripe, ex-Notion. Decides fast when the ROI and the craft are both there.",
+          "Leads GTM and Operations and owns the revenue tooling budget. Ex-Stripe, ex-Notion. Decides fast when the ROI and the craft are both there.",
         linkedin: "https://www.linkedin.com/in/cristinajcordova",
       },
       {
@@ -118,7 +118,7 @@ export const KNOWN_COMPANIES: Record<string, SeedCompany> = {
     signals: ["Shipping Notion AI", "Enterprise tier launch", "Scaling sales team 3x"],
     brandColors: ["#000000", "#FFFFFF"],
     summary:
-      "Notion is scaling its enterprise GTM 3x while shipping AI — a large, fast-moving buying committee with clear budget authority.",
+      "Notion is scaling its enterprise GTM 3x while shipping AI, with a large, fast-moving buying committee and clear budget authority.",
   },
   "vercel.com": {
     companyName: "Vercel",
@@ -129,7 +129,7 @@ export const KNOWN_COMPANIES: Record<string, SeedCompany> = {
     signals: ["Series E at $3.25B", "v0 + AI push", "Enterprise logos accelerating"],
     brandColors: ["#000000", "#FFFFFF"],
     summary:
-      "Vercel is doubling down on enterprise after its Series E. Strong technical buying committee — VP Eng and platform leads drive decisions alongside the economic buyer.",
+      "Vercel is doubling down on enterprise after its Series E. Strong technical buying committee; VP Eng and platform leads drive decisions alongside the economic buyer.",
   },
   "convex.dev": {
     companyName: "Convex",
@@ -158,13 +158,13 @@ export function titleizeDomain(domain: string): string {
 export function fallbackCompany(domain: string): SeedCompany {
   return {
     companyName: titleizeDomain(domain),
-    industry: "B2B Software",
-    headcount: "50–200",
-    funding: "Venture-backed",
-    techStack: ["React", "TypeScript", "AWS"],
-    signals: ["Active hiring", "Recent product launch", "Expanding GTM"],
-    brandColors: ["#5B47EB", "#0F0F0F"],
-    summary: `${titleizeDomain(domain)} is a growing B2B software company with an active buying committee.`,
+    industry: "Software",
+    headcount: "1-10",
+    funding: "Early stage",
+    techStack: [],
+    signals: ["Founder-led", "Early customer discovery"],
+    brandColors: ["#F97316", "#0F0F0F"],
+    summary: `${titleizeDomain(domain)} is an early-stage software company. Verify the team before mapping a buying committee.`,
   };
 }
 
@@ -172,36 +172,10 @@ export function logoForDomain(domain: string): string {
   return `https://logo.clearbit.com/${domain}`;
 }
 
-// Synthesize a plausible buying committee for companies without curated data.
-// Roles map to a real B2B committee for a GTM/RevOps tool sale.
 export function generateCommittee(domain: string, companyName: string): CommitteeMember[] {
-  const handle = (first: string) => `${first.toLowerCase()}@${domain}`;
-  return [
-    {
-      name: "Jordan Avery",
-      title: "VP of Revenue Operations",
-      email: handle("jordan"),
-      role: "economic_buyer",
-      persona:
-        "Owns the GTM tech budget and the number. Buys on pipeline efficiency, rep productivity, and payback period.",
-    },
-    {
-      name: "Priya Nair",
-      title: "Chief Financial Officer",
-      email: handle("priya"),
-      role: "user",
-      persona:
-        "Signs off on spend. Cares about measurable ROI, contract terms, and whether this consolidates other line items.",
-    },
-    {
-      name: "Marcus Lin",
-      title: "VP of Engineering",
-      email: handle("marcus"),
-      role: "technical",
-      persona:
-        "Security and integration reviewer. Asks about SOC 2, data handling, and how cleanly it fits the existing stack.",
-    },
-  ];
+  void domain;
+  void companyName;
+  return [];
 }
 
 export function committeeForDomain(domain: string, companyName: string): CommitteeMember[] {

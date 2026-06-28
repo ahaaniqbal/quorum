@@ -50,7 +50,7 @@ export default function Dashboard() {
   const actioned =
     account?.status === "actioned" || actions.some((a: any) => a.status === "done");
 
-  // The autopilot spine — runs with zero voice involved. The live call is a
+  // The autopilot spine: runs with zero voice involved. The live call is a
   // separate, optional action the judge can trigger from the Call panel.
   let nextAction: Action | null = null;
   if (account) {
@@ -131,7 +131,7 @@ export default function Dashboard() {
         onRunNext={() => fire(nextAction)}
       />
       <NextMoveBar moves={account!.moves} />
-      <main className="grid-lines grid min-h-0 flex-1 grid-cols-[330px_1fr_368px] gap-3 overflow-hidden p-3">
+      <main className="grid-lines grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[330px_minmax(0,1fr)_368px] xl:overflow-hidden">
         <ActivityFeed events={data.events} />
         <CallPanel
           conversation={convo}

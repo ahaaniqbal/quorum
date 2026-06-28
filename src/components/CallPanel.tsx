@@ -78,7 +78,7 @@ export default function CallPanel({
               <div className="mb-1.5 flex items-baseline justify-between">
                 <span className="mono-label normal-case tracking-normal">{p.label}</span>
                 <span className="font-mono text-[12px] tabular-nums text-text">
-                  {s ? s : "—"}
+                  {s ? s : "0"}
                   <span className="text-tertiary">{s ? "/10" : ""}</span>
                 </span>
               </div>
@@ -169,7 +169,7 @@ export default function CallPanel({
         )}
       </div>
 
-      {/* Live conversation input — the prospect actually replies to the AI rep */}
+      {/* Live conversation input: the prospect actually replies to the AI rep */}
       {callState === "live" && onSend && (
         <div className="border-t border-border p-3">
           <div className="flex items-end gap-2">
@@ -186,10 +186,10 @@ export default function CallPanel({
               placeholder="Reply to the rep as the prospect…"
               className="max-h-24 min-h-[38px] flex-1 resize-none rounded border border-border bg-surface px-3 py-2 text-[13px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
             />
-            <button onClick={send} disabled={sending || !draft.trim()} className="btn-primary h-[38px] px-3">
+            <button onClick={send} disabled={sending || !draft.trim()} className="btn-primary h-9 px-3">
               Send
             </button>
-            <button onClick={onEndCall} className="btn-secondary h-[38px] px-3" title="End call & qualify">
+            <button onClick={onEndCall} className="btn-secondary h-9 px-3" title="End call & qualify">
               End
             </button>
           </div>

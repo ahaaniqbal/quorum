@@ -10,7 +10,7 @@ function assembleContext(data: any): string {
   const a = data.account;
   const e = a.enrichment ?? {};
   const lines: string[] = [
-    `ACCOUNT: ${a.companyName} (${a.domain}) — ${e.industry ?? ""}, ${e.funding ?? ""}`,
+    `ACCOUNT: ${a.companyName} (${a.domain}): ${e.industry ?? ""}, ${e.funding ?? ""}`,
     `SIGNALS: ${(e.signals ?? []).join("; ")}`,
     `COMMITTEE: ${data.contacts
       .map((c: any) => `${c.name} (${c.title ?? c.role})`)

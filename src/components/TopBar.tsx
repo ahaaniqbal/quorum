@@ -19,88 +19,98 @@ export default function TopBar({
     e.hq,
   ].filter(Boolean);
   const sources: string[] = e.sources ?? [];
+  const visibleChips = [
+    ...chips,
+    ...(e.techStack ?? []).slice(0, 3),
+  ];
 
   return (
-    <header className="flex items-center justify-between border-b border-border px-5 py-3">
-      <div className="flex items-center gap-3.5">
-        <Logo url={account?.logoUrl} name={account?.companyName} />
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[15px] font-semibold leading-none tracking-tight">
-              {account?.companyName ?? "—"}
+    <header className="grid h-16 grid-cols-[minmax(180px,0.8fr)_minmax(150px,1fr)_auto] items-center gap-4 border-b border-border px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <Logo url={account?.logoUrl} name={account?.companyName} domain={account?.domain} />
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h1 className="truncate text-[15px] font-semibold leading-none tracking-tight">
+              {account?.companyName ?? "Unknown account"}
             </h1>
-            <span className="font-mono text-[11px] text-tertiary">{account?.domain}</span>
+            <span className="truncate font-mono text-[11px] text-tertiary">
+              {account?.domain}
+            </span>
             {sources.length > 0 && (
-              <span className="mono-label hidden text-tertiary md:inline">
+              <span className="mono-label hidden shrink-0 text-tertiary lg:inline">
                 · via {sources.join(" + ")}
               </span>
             )}
           </div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {chips.map((c, i) => (
-              <span key={i} className="chip py-0.5">
-                {c}
-              </span>
-            ))}
-            {(e.techStack ?? []).slice(0, 4).map((t: string) => (
-              <span key={t} className="chip py-0.5" style={{ color: "var(--accent)" }}>
-                {t}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+        {visibleChips.slice(0, 5).map((chip, index) => {
+          const isTech = index >= chips.length;
+          return (
+            <span
+              key={`${chip}-${index}`}
+              className="min-w-0 truncate border border-border bg-surface2 px-2 py-1 font-mono text-[11px] text-secondary"
+              style={isTech ? { color: "var(--accent)" } : undefined}
+            >
+              {chip}
+            </span>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-end gap-2">
         {onRethread && (
           <button
             onClick={onRethread}
             disabled={rethreading}
-            className="btn-secondary h-8 gap-2 px-2.5 text-[12px]"
+            className="btn-secondary h-9 shrink-0 whitespace-nowrap px-2.5 text-[12px]"
             style={{ color: "var(--accent)" }}
           >
             <span
-              className="h-1.5 w-1.5 rounded-full"
+              className="h-1.5 w-1.5 shrink-0"
               style={{ background: "var(--accent)" }}
             />
-            {rethreading ? "Threading…" : "New inbound · same co."}
+            {rethreading ? "Threading…" : "New inbound"}
           </button>
         )}
-        <div className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
+        <div className="flex h-9 shrink-0 items-center gap-1.5 border border-border px-2.5">
+          <span className="h-1.5 w-1.5 animate-pulse bg-good" />
           <span className="mono-label normal-case tracking-normal text-secondary">
             account brain live
           </span>
-        </div>
-        <div className="flex items-center gap-2 pl-1">
-          <div className="flex h-6 w-6 items-center justify-center rounded border border-border">
-            <div
-              className="h-2.5 w-2.5 rounded-full border-[1.5px]"
-              style={{ borderColor: "var(--accent)" }}
-            />
-          </div>
-          <span className="text-[14px] font-semibold tracking-tight">Quorum</span>
         </div>
       </div>
     </header>
   );
 }
 
-function Logo({ url, name }: { url?: string; name?: string }) {
-  const [ok, setOk] = useState(true);
-  if (url && ok) {
+function Logo({ url, name, domain }: { url?: string; name?: string; domain?: string }) {
+  const fallbackUrl = domain
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
+    : null;
+  const [src, setSrc] = useState(url ?? fallbackUrl ?? null);
+
+  if (src) {
     return (
       <img
-        src={url}
-        onError={() => setOk(false)}
-        className="h-10 w-10 border border-border bg-white object-contain p-1"
+        src={src}
+        onError={() => {
+          if (src !== fallbackUrl && fallbackUrl) {
+            setSrc(fallbackUrl);
+          } else {
+            setSrc(null);
+          }
+        }}
+        className="h-8 w-8 shrink-0 border border-border bg-white object-contain p-1"
         alt={name}
       />
     );
   }
   return (
     <div
-      className="flex h-10 w-10 items-center justify-center border border-border bg-surface font-mono text-sm font-semibold"
+      className="flex h-8 w-8 shrink-0 items-center justify-center border border-border bg-surface font-mono text-sm font-semibold"
       style={{ color: "var(--accent)" }}
     >
       {name?.[0] ?? "?"}

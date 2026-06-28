@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { initials } from "../lib/format";
 
-// Real images, never generic initials unless the network fails:
-// 1) the person's real photo (Fiber LinkedIn profile_pic)
-// 2) a deterministic real-face fallback keyed by email/name
-// 3) initials block only if both images error
+// Real images only. If we do not have a verified person photo, show initials
+// instead of a synthetic face that could imply the wrong identity.
 export function Avatar({
   photoUrl,
   email,
@@ -18,10 +16,8 @@ export function Avatar({
   size?: number;
   className?: string;
 }) {
-  const seed = encodeURIComponent(email || name || "anon");
-  const sources = [photoUrl, `https://i.pravatar.cc/120?u=${seed}`].filter(
-    Boolean
-  ) as string[];
+  void email;
+  const sources = [photoUrl].filter(Boolean) as string[];
   const [idx, setIdx] = useState(0);
 
   const style = { width: size, height: size };

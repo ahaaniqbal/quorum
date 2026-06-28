@@ -43,6 +43,7 @@ export default function DealMap({
       label="Committee"
       index="03"
       desc={copy.panels.dealMap.desc}
+      className="min-h-[520px] xl:min-h-0"
       right={
         <span className="mono-label tnum text-tertiary">
           {String(contacts.length).padStart(2, "0")} in committee
@@ -88,7 +89,7 @@ export default function DealMap({
               {mapping ? copy.loading.mapping : copy.empty.dealMap}
             </p>
             {!mapping && (
-              <button onClick={onMapCommittee} className="btn-secondary h-8 text-[12px]">
+              <button onClick={onMapCommittee} className="btn-secondary h-9 text-[12px]">
                 Map committee now
               </button>
             )}

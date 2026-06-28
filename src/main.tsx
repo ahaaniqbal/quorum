@@ -5,6 +5,7 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { convex } from "./lib/convex";
 import { TooltipProvider } from "./components/ui/tooltip";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import AuthedApp from "./components/AuthedApp";
 import SignIn from "./pages/SignIn";
 import Splash from "./components/Splash";
@@ -15,15 +16,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ConvexAuthProvider client={convex}>
       <TooltipProvider delayDuration={150} skipDelayDuration={300}>
         <BrowserRouter>
-          <AuthLoading>
-            <Splash />
-          </AuthLoading>
-          <Unauthenticated>
-            <SignIn />
-          </Unauthenticated>
-          <Authenticated>
-            <AuthedApp />
-          </Authenticated>
+          <AppErrorBoundary>
+            <AuthLoading>
+              <Splash />
+            </AuthLoading>
+            <Unauthenticated>
+              <SignIn />
+            </Unauthenticated>
+            <Authenticated>
+              <AuthedApp />
+            </Authenticated>
+          </AppErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </ConvexAuthProvider>

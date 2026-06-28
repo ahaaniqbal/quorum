@@ -109,7 +109,7 @@ export default function Onboarding({
               <div>
                 <h1 className="text-[20px] font-semibold tracking-tight">Welcome to Quorum</h1>
                 <p className="mt-1 text-[13px] text-secondary">
-                  Your autonomous account executive. First — what should we call you?
+                  Your autonomous account executive. First, what should we call you?
                 </p>
                 <div className="mt-5">
                   <label className="mono-label mb-1.5 block">Your name</label>
@@ -127,7 +127,7 @@ export default function Onboarding({
                 <h1 className="text-[20px] font-semibold tracking-tight">What do you sell?</h1>
                 <p className="mt-1 text-[13px] text-secondary">
                   Quorum's AI rep pitches <span className="text-text">your</span> product on every
-                  call — so this matters.
+                  call, so this matters.
                 </p>
                 {autofilling ? (
                   <div className="mt-3 flex items-center gap-2 text-[12px] text-accent-soft">
@@ -136,7 +136,7 @@ export default function Onboarding({
                   </div>
                 ) : autofilledFrom ? (
                   <div className="mt-3 flex items-center gap-1.5 text-[12px] text-accent-soft">
-                    <span>✦</span> Pre-filled from {autofilledFrom} — edit anything.
+                    <span>✦</span> Pre-filled from {autofilledFrom}. Edit anything.
                   </div>
                 ) : null}
                 <div className="mt-5 space-y-3">

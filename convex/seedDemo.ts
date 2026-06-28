@@ -1,7 +1,7 @@
 import { mutation } from "./_generated/server";
 
-// Public demo accounts (userId = null) so every visitor — including a judge who
-// just opened the app cold — sees a populated pipeline and can open the fully
+// Public demo accounts (userId = null) so every visitor, including a judge who
+// just opened the app cold, sees a populated pipeline and can open the fully
 // worked hero account ("Try a sample company"). Idempotent.
 
 type EventSeed = { type: string; label: string };
@@ -55,7 +55,7 @@ export const seedDemo = mutation({
     const now = Date.now();
     const min = (m: number) => now - m * 60_000;
 
-    // ---------- ACCOUNT A — Ramp (hero, fully worked) ----------
+    // ---------- ACCOUNT A: Ramp (hero, fully worked) ----------
     const rampId = await ctx.db.insert("accounts", {
       domain: "ramp.com",
       companyName: "Ramp",
@@ -251,7 +251,7 @@ export const seedDemo = mutation({
     ];
     for (const e of eventsA) await ctx.db.insert("events", { accountId: rampId, ...e });
 
-    // ---------- ACCOUNT B — Notion (committee mapped, no call yet) ----------
+    // ---------- ACCOUNT B: Notion (committee mapped, no call yet) ----------
     const notionId = await ctx.db.insert("accounts", {
       domain: "notion.so",
       companyName: "Notion",
@@ -300,7 +300,7 @@ export const seedDemo = mutation({
     ] as EventSeed[])
       await ctx.db.insert("events", { accountId: notionId, ...e });
 
-    // ---------- ACCOUNT C — Vercel (just enriched) ----------
+    // ---------- ACCOUNT C: Vercel (just enriched) ----------
     const vercelId = await ctx.db.insert("accounts", {
       domain: "vercel.com",
       companyName: "Vercel",

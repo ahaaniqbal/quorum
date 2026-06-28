@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 const DEFS = [
   { type: "slack", label: "Slack alert" },
@@ -18,6 +19,9 @@ export default function ActionsRail({
 }) {
   const byType: Record<string, any> = {};
   for (const a of actions) byType[a.type] = a;
+  const needsReview = actions.some((action) =>
+    ["pending", "failed", "skipped"].includes(action.status)
+  );
 
   return (
     <div className="cell flex items-center gap-3 px-4 py-2.5">
@@ -69,6 +73,15 @@ export default function ActionsRail({
           );
         })}
       </div>
+
+      {needsReview && (
+        <Link
+          to="/review"
+          className="mono-label shrink-0 rounded border border-warn/30 bg-warn/10 px-2 py-1.5 normal-case tracking-normal text-warn transition-colors hover:border-warn/50"
+        >
+          audit actions →
+        </Link>
+      )}
 
       <button onClick={onFire} disabled={firing} className="btn-primary shrink-0">
         {firing ? "Firing…" : "Close the loop"}

@@ -1,6 +1,6 @@
 export type StageKey = "enriched" | "committee" | "outreach" | "actioned";
 
-// The reliable spine — runs with zero voice involved. The live call is a
+// The reliable spine: runs with zero voice involved. The live call is a
 // separate, optional action shown in the Call panel.
 export const STAGES: { key: StageKey; label: string; verb: string }[] = [
   { key: "enriched", label: "Enriched", verb: "Enriching account" },

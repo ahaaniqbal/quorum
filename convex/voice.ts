@@ -142,7 +142,7 @@ export const finishCall = mutation({
     await ctx.db.insert("events", {
       accountId,
       type: "call_ended",
-      label: `Call ended — qualified, score ${qualification?.score ?? "—"}/100${
+      label: `Call ended: qualified, score ${qualification?.score ?? "n/a"}/100${
         qualification?.booked ? ", meeting booked" : ""
       }`,
       payload: { qualification },
@@ -150,7 +150,7 @@ export const finishCall = mutation({
   },
 });
 
-// ── Real OpenAI-driven qualification conversation ────────────────────────────
+// Real OpenAI-driven qualification conversation
 
 export const startCall = action({
   args: { contactId: v.id("contacts") },
@@ -179,7 +179,7 @@ export const startCall = action({
         ],
         { maxTokens: 120 }
       )) ??
-      `Hi ${first}, this is the Quorum rep — thanks for dropping your email. Did I catch you at an okay time?`;
+      `Hi ${first}, this is the Quorum rep. Thanks for dropping your email. Did I catch you at an okay time?`;
 
     await ctx.runMutation(api.voice.appendLine, {
       conversationId: conversationId as any,
@@ -219,7 +219,7 @@ export const replyToCall = action({
     const reply =
       (await openaiChat([{ role: "system", content: system }, ...history], {
         maxTokens: 180,
-      })) ?? "Got it — tell me a bit more about that.";
+      })) ?? "Got it. Tell me a bit more about that.";
 
     await ctx.runMutation(api.voice.appendLine, {
       conversationId,
@@ -292,7 +292,7 @@ export const endCall = action({
   },
 });
 
-// ── Real Vapi web-call path (activates when a public key is set) ──────────────
+// Real Vapi web-call path (activates when a public key is set)
 
 export const createVoiceConversation = mutation({
   args: { contactId: v.id("contacts"), vapiCallId: v.optional(v.string()) },

@@ -55,7 +55,7 @@ Return ONLY this JSON, no other text:
 }`;
 }
 
-// ── 2. Committee Inference (strong reasoning — the graph builder) ──
+// 2. Committee Inference (strong reasoning: the graph builder)
 export function committeeInferencePrompt(seller?: any): string {
   return `You are the committee-mapping engine for Quorum, a deal brain for B2B sales reps. Your job is to turn what we know about a company and its people into a clear map of the buying committee: who has to be involved for this deal to close, how they relate, and who is being neglected.
 
@@ -88,7 +88,7 @@ Return ONLY this JSON, no other text:
 }`;
 }
 
-// ── 3. Next-Move Engine (strong reasoning — the morning hook) ──
+// 3. Next-Move Engine (strong reasoning: the morning hook)
 export function nextMovePrompt(seller?: any): string {
   return `You are the next-move engine for Quorum, a deal brain for B2B sales reps. Given everything we know about an account and its buying committee, you tell the rep exactly what to do next, per person, the way a world-class sales coach would. Be specific and tactical. Never say "follow up" without saying about what and why.
 

@@ -17,7 +17,7 @@ type StartArgs = {
 };
 
 // Starts a real in-browser Vapi voice call. The Vapi Web SDK emits transcript
-// events client-side, so we push them straight into Convex — no webhook needed.
+// events client-side, so we push them straight into Convex; no webhook needed.
 // Dynamically imported so the bundle/build never depends on the package when
 // no key is configured.
 export async function startRealVapiCall(args: StartArgs): Promise<void> {

@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const createAccount = mutation({
   args: {
@@ -165,5 +166,51 @@ export const setDraftStatus = mutation({
   args: { draftId: v.id("drafts"), status: v.string() },
   handler: async (ctx, { draftId, status }) => {
     await ctx.db.patch(draftId, { status });
+  },
+});
+
+export const updateDraft = mutation({
+  args: {
+    draftId: v.id("drafts"),
+    subject: v.string(),
+    body: v.string(),
+  },
+  handler: async (ctx, { draftId, subject, body }) => {
+    const draft = await ctx.db.get(draftId);
+    if (!draft) throw new Error("Draft not found");
+    const account = await ctx.db.get(draft.accountId);
+    if (!account) throw new Error("Account not found");
+    const userId = await getAuthUserId(ctx);
+    if (account.userId && account.userId !== userId) throw new Error("Not authorized");
+
+    await ctx.db.patch(draftId, { subject, body });
+    await ctx.db.insert("events", {
+      accountId: draft.accountId,
+      type: "outreach_drafted",
+      label: "Edited outreach draft",
+    });
+  },
+});
+
+export const reviewDraft = mutation({
+  args: { draftId: v.id("drafts"), status: v.union(v.literal("approved"), v.literal("skipped")) },
+  handler: async (ctx, { draftId, status }) => {
+    const draft = await ctx.db.get(draftId);
+    if (!draft) throw new Error("Draft not found");
+    const account = await ctx.db.get(draft.accountId);
+    if (!account) throw new Error("Account not found");
+    const userId = await getAuthUserId(ctx);
+    if (account.userId && account.userId !== userId) throw new Error("Not authorized");
+    const contact = await ctx.db.get(draft.contactId);
+
+    await ctx.db.patch(draftId, { status });
+    await ctx.db.insert("events", {
+      accountId: draft.accountId,
+      type: "outreach_drafted",
+      label:
+        status === "approved"
+          ? `Approved outreach to ${contact?.name ?? "committee member"}`
+          : `Skipped outreach to ${contact?.name ?? "committee member"}`,
+    });
   },
 });

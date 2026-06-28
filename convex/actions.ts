@@ -86,9 +86,35 @@ function titleCase(s: string): string {
   return s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normalizeName(value: string | undefined | null): string {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function sameCompanyName(a: string | undefined, b: string | undefined): boolean {
+  const left = normalizeName(a);
+  const right = normalizeName(b);
+  if (!left || !right) return false;
+  return left.includes(right) || right.includes(left);
+}
+
+function isTinyCompany(headcount: string | undefined): boolean {
+  if (!headcount) return false;
+  const nums = headcount.match(/\d[\d,]*/g)?.map((n) => Number(n.replace(/,/g, ""))) ?? [];
+  if (!nums.length) return false;
+  return Math.max(...nums) <= 10;
+}
+
+function shouldDefaultFounder(title: string | undefined, headcount: string | undefined): boolean {
+  if (!isTinyCompany(headcount)) return false;
+  if (!title) return true;
+  return /head of revenue|sales|growth|marketing|business development/i.test(title);
+}
+
 // Read the seller's OWN company from their business-email domain and synthesize
 // the onboarding fields (company, what you sell, value prop, ICP). Pre-fill
-// only — the user reviews and edits before saving. Returns null for free/personal
+// only; the user reviews and edits before saving. Returns null for free/personal
 // domains (nothing to infer) so the UI just leaves the form blank.
 export const autofillSeller = action({
   args: { email: v.string() },
@@ -166,7 +192,7 @@ export const enrichFromEmail = action({
   args: { email: v.string(), asUserId: v.optional(v.id("users")) },
   handler: async (ctx, { email, asUserId }): Promise<string> => {
     // A signed-in caller always wins (can't be spoofed). asUserId is only honored
-    // when there is no auth context — i.e. server-side ingestion via the scheduler
+    // when there is no auth context, i.e. server-side ingestion via the scheduler
     // or the inbound webhook, which resolve the owner from a token.
     const authed = await getAuthUserId(ctx);
     const userId = authed ?? asUserId ?? null;
@@ -245,7 +271,7 @@ export const enrichFromEmail = action({
     await ctx.runMutation(api.mutations.recordEvent, {
       accountId: accountId as any,
       type: "enriched",
-      label: `${fiber ? "Fiber enriched" : "Enriched"} ${company.companyName} — ${company.funding}, ${company.headcount} employees`,
+      label: `${fiber ? "Fiber enriched" : "Enriched"} ${company.companyName}: ${company.funding}, ${company.headcount} employees`,
       payload: enrichment,
     });
 
@@ -258,14 +284,22 @@ export const enrichFromEmail = action({
       await ctx.runMutation(api.mutations.recordEvent, {
         accountId: accountId as any,
         type: "enriched",
-        label: `Orange Slice: LinkedIn snapshot — ${bits.join(" · ")}`,
+        label: `Orange Slice: LinkedIn snapshot: ${bits.join(" · ")}`,
         payload: { source: "orangeslice" },
       });
     }
 
-    // Primary contact — real identity via Fiber email-to-person when available.
-    const primaryName = person?.name ?? nameFromEmail(email);
-    const primaryTitle = person?.title || "Head of Revenue";
+    // Primary contact: only trust Fiber person details when the current company
+    // matches the enriched account. For tiny startups, a missing/generic title is
+    // more safely modeled as founder than as a revenue executive.
+    const trustedPerson = person && sameCompanyName(person.companyName, company.companyName)
+      ? person
+      : null;
+    const primaryName = trustedPerson?.name ?? nameFromEmail(email);
+    const rawPrimaryTitle = trustedPerson?.title;
+    const primaryTitle = shouldDefaultFounder(rawPrimaryTitle, company.headcount)
+      ? "Founder"
+      : rawPrimaryTitle || "Primary contact";
     const contactId = await ctx.runMutation(api.mutations.addContact, {
       accountId: accountId as any,
       name: primaryName,
@@ -273,8 +307,8 @@ export const enrichFromEmail = action({
       email,
       role: "champion",
       persona: "Pragmatic, ROI-driven, wants speed-to-value.",
-      enrichment: person
-        ? { linkedin: person.linkedin, headline: person.headline, profilePic: person.profilePic }
+      enrichment: trustedPerson
+        ? { linkedin: trustedPerson.linkedin, headline: trustedPerson.headline, profilePic: trustedPerson.profilePic }
         : undefined,
       isPrimary: true,
     });
@@ -282,7 +316,7 @@ export const enrichFromEmail = action({
     await ctx.runMutation(api.mutations.recordEvent, {
       accountId: accountId as any,
       type: "enriched",
-      label: person
+      label: trustedPerson
         ? `Fiber reverse-lookup: ${email} → ${primaryName}, ${primaryTitle}`
         : `Identified ${primaryName} as primary contact at ${company.companyName}`,
       payload: { contactId },

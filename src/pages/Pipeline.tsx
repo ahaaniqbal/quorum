@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import { api } from "../../convex/_generated/api";
@@ -13,11 +13,20 @@ const FREE_DOMAINS = new Set([
 ]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// A realistic "morning inbound" burst — varied real B2B companies Quorum works
+// A realistic "morning inbound" burst: varied real B2B companies Quorum works
 // in parallel, so the rep never types one at a time.
 const BURST = [
   "ceo@rippling.com", "gtm@brex.com", "sales@airtable.com", "ops@retool.com",
   "revenue@deel.com", "founder@mercury.com", "head@vanta.com", "lead@census.com",
+];
+
+type FilterKey = "all" | "attention" | "worked" | "demo";
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "all", label: "All accounts" },
+  { key: "attention", label: "Needs review" },
+  { key: "worked", label: "Worked" },
+  { key: "demo", label: "Demo data" },
 ];
 
 function parseEmails(text: string): { valid: string[]; skipped: number } {
@@ -49,10 +58,21 @@ export default function Pipeline() {
   const [note, setNote] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [filter, setFilter] = useState<FilterKey>("all");
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const webhookUrl = ingest?.url ?? null;
+  const worked = pipeline.filter((a: any) => a.stage === "actioned").length;
+  const needsReview = pipeline.filter((a: any) => a.stage !== "actioned").length;
+  const reviewReady = pipeline.filter((a: any) => a.stage === "outreach").length;
+  const demoAccounts = pipeline.filter((a: any) => a.isDemo).length;
+  const filteredPipeline = pipeline.filter((a: any) => {
+    if (filter === "attention") return a.stage !== "actioned";
+    if (filter === "worked") return a.stage === "actioned";
+    if (filter === "demo") return a.isDemo;
+    return true;
+  });
 
   function openSample() {
     if (sampleId) navigate(`/deal/${sampleId}`);
@@ -163,10 +183,11 @@ export default function Pipeline() {
   return (
     <div className="dot-grid flex-1 overflow-y-auto">
       {/* Page header */}
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div>
-          <div className="mono-label mb-1">Pipeline</div>
-          <h1 className="text-[18px] font-semibold tracking-tight">Accounts</h1>
+      <header className="flex h-12 items-center justify-between border-b border-border px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="mono-label shrink-0 text-tertiary">Pipeline</span>
+          <span className="h-4 w-px bg-border" />
+          <h1 className="truncate text-[15px] font-semibold tracking-tight">Accounts</h1>
         </div>
         <span className="mono-label tnum text-tertiary">
           {String(pipeline.length).padStart(2, "0")} active
@@ -174,6 +195,25 @@ export default function Pipeline() {
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-7">
+        {/* Command center summary */}
+        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric label="Active accounts" value={pipeline.length} detail={`${worked} fully worked`} />
+          <Metric
+            label="Needs review"
+            value={needsReview}
+            detail={`${reviewReady} accounts ready for approval`}
+            tone={needsReview ? "warn" : "good"}
+            to="/review"
+          />
+          <Metric
+            label="Lead source"
+            value={webhookUrl ? "Live" : "Manual"}
+            detail={webhookUrl ? "Webhook generated" : "Paste, CSV, or burst"}
+            tone={webhookUrl ? "good" : "neutral"}
+          />
+          <Metric label="Demo data" value={demoAccounts} detail="Seeded walkthrough accounts" />
+        </div>
+
         {/* Inbound entry */}
         <div className="cell p-5">
           <span className="plus plus-tl" />
@@ -183,7 +223,7 @@ export default function Pipeline() {
           <div className="mb-3 flex items-center gap-2">
             <span className="mono-label">Inbound</span>
             <span className="text-[13px] text-secondary">
-              — Quorum works every lead automatically. Paste a batch, connect a source, or take one
+              Quorum works every lead automatically. Paste a batch, connect a source, or take one
               by hand.
             </span>
           </div>
@@ -233,7 +273,7 @@ export default function Pipeline() {
               />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
+              <button type="submit" disabled={loading} className="btn-primary h-9 px-4">
                 {loading
                   ? "Working…"
                   : emails.length > 1
@@ -250,7 +290,7 @@ export default function Pipeline() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="btn-secondary h-11 px-4"
+                className="btn-secondary h-9 px-4"
                 title="Upload a CSV or text file of emails"
               >
                 ⇪ Upload CSV
@@ -259,8 +299,8 @@ export default function Pipeline() {
                 type="button"
                 onClick={() => runBatch(BURST)}
                 disabled={loading}
-                className="btn-secondary h-11 px-4"
-                title="Simulate a morning of inbound — Quorum works them all in parallel"
+                className="btn-secondary h-9 px-4"
+                title="Simulate a morning of inbound. Quorum works them all in parallel"
               >
                 ↯ Simulate {BURST.length}-lead burst
               </button>
@@ -268,7 +308,7 @@ export default function Pipeline() {
                 type="button"
                 onClick={openSample}
                 disabled={!sampleId}
-                className="btn-secondary h-11 px-4"
+                className="btn-secondary h-9 px-4"
                 title={copy.pipeline.sampleHint}
               >
                 {copy.pipeline.sampleCta}
@@ -279,7 +319,7 @@ export default function Pipeline() {
           {working != null && (
             <p className="mt-2.5 flex items-center gap-2 text-[12px] text-accent-soft">
               <span className="h-3 w-3 animate-spin rounded-full border border-accent-soft border-t-transparent" />
-              Working {working} inbound{working === 1 ? "" : "s"} autonomously — enriching, mapping
+              Working {working} inbound{working === 1 ? "" : "s"} autonomously, enriching, mapping
               committees, and drafting. They appear below as they land.
             </p>
           )}
@@ -294,12 +334,12 @@ export default function Pipeline() {
             </p>
           )}
 
-          {/* Inbound webhook — the real ingestion seam */}
+          {/* Inbound webhook: the real ingestion seam */}
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center gap-2">
               <span className="mono-label">Inbound webhook</span>
               <span className="text-[12px] text-tertiary">
-                point your form, CRM, or inbox here — every lead is worked on arrival.
+                point your form, CRM, or inbox here. Every lead is worked on arrival.
               </span>
             </div>
             {webhookUrl ? (
@@ -325,20 +365,54 @@ export default function Pipeline() {
 
         {/* Accounts board */}
         <div className="mb-3 mt-8 flex items-center gap-2">
-          <span className="mono-label">Active accounts</span>
+          <span className="mono-label">Account queue</span>
           <div className="h-px flex-1 bg-border" />
+          <span className="mono-label tnum text-tertiary">
+            {String(filteredPipeline.length).padStart(2, "0")} shown
+          </span>
+          <Link
+            to="/review"
+            className="btn-secondary h-9 px-3 text-[12px]"
+            title="Review generated outreach and action issues"
+          >
+            Review queue →
+          </Link>
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {FILTERS.map((f) => {
+            const active = filter === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                aria-pressed={active}
+                className={`rounded border px-2.5 py-1.5 font-mono text-[11px] transition-colors duration-150 ${
+                  active
+                    ? "border-accent/40 bg-accent/15 text-accent-soft"
+                    : "border-border bg-surface text-secondary hover:border-border-strong hover:text-text"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
 
-        {pipeline.length === 0 ? (
+        {filteredPipeline.length === 0 ? (
           <div className="cell flex flex-col items-center gap-2 px-6 py-14 text-center">
-            <p className="text-[14px] text-secondary">No accounts yet.</p>
+            <p className="text-[14px] text-secondary">
+              {pipeline.length === 0 ? "No accounts yet." : "No accounts match this view."}
+            </p>
             <p className="text-[13px] text-tertiary">
-              Simulate an inbound burst above — Quorum works them all into account brains.
+              {pipeline.length === 0
+                ? "Simulate an inbound burst above. Quorum works them all into account brains."
+                : "Switch filters or run a new inbound to add more accounts."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {pipeline.map((a: any, i: number) => (
+            {filteredPipeline.map((a: any, i: number) => (
               <motion.button
                 key={a._id}
                 initial={{ opacity: 0, y: 8 }}
@@ -349,11 +423,11 @@ export default function Pipeline() {
               >
                 <div
                   className="h-[2px] w-full"
-                  style={{ background: a.brandColors?.[0] ?? "#5B47EB" }}
+                  style={{ background: a.brandColors?.[0] ?? "var(--accent)" }}
                 />
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <Logo url={a.logoUrl} name={a.companyName} />
+                    <Logo url={a.logoUrl} name={a.companyName} domain={a.domain} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[14px] font-semibold text-text">
                         {a.companyName}
@@ -375,7 +449,7 @@ export default function Pipeline() {
                   {/* mini stage progress */}
                   <div className="mt-3.5 flex items-center gap-1">
                     {STAGES.map((s, idx) => {
-                      const reached = STAGE_INDEX[a.stage as keyof typeof STAGE_INDEX] ?? 0;
+                      const reached = stageIndex(a.stage);
                       return (
                         <div
                           key={s.key}
@@ -386,12 +460,20 @@ export default function Pipeline() {
                       );
                     })}
                   </div>
-                  <div className="mt-2.5 flex items-center justify-between">
+                  <div className="mt-2.5 flex items-center justify-between gap-3">
                     <span className="mono-label normal-case tracking-normal text-secondary">
-                      {STAGES[STAGE_INDEX[a.stage as keyof typeof STAGE_INDEX] ?? 0].label}
+                      {stageLabel(a.stage)}
                       {a.committee > 0 ? ` · ${a.committee} in committee` : ""}
                     </span>
                     <span className="mono-label text-tertiary">{timeAgo(a.lastActivity)}</span>
+                  </div>
+                  <div className="mt-3 border-t border-border pt-2">
+                    <p className="truncate text-[12px] text-tertiary">
+                      <span className="mono-label normal-case tracking-normal text-tertiary">
+                        review
+                      </span>{" "}
+                      {nextReview(a)}
+                    </p>
                   </div>
                 </div>
               </motion.button>
@@ -403,14 +485,83 @@ export default function Pipeline() {
   );
 }
 
-function Logo({ url, name }: { url?: string; name?: string }) {
-  if (url) {
+function stageIndex(stage: string): number {
+  return STAGE_INDEX[stage as keyof typeof STAGE_INDEX] ?? 0;
+}
+
+function stageLabel(stage: string): string {
+  return STAGES[stageIndex(stage)].label;
+}
+
+function nextReview(account: any): string {
+  if (account.stage === "actioned") return "Audit actions fired across the stack.";
+  if (account.stage === "outreach") return "Review drafted outreach before sending.";
+  if (account.stage === "committee") return "Check committee coverage and next move.";
+  return account.lastLabel ?? "Confirm enrichment before autopilot continues.";
+}
+
+function Metric({
+  label,
+  value,
+  detail,
+  tone = "neutral",
+  to,
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  tone?: "neutral" | "good" | "warn";
+  to?: string;
+}) {
+  const toneClass =
+    tone === "good" ? "text-good" : tone === "warn" ? "text-warn" : "text-text";
+  const className = "cell block px-4 py-3 text-left transition-colors duration-150 hover:border-border-strong";
+  const content = (
+    <>
+      <span className="plus plus-tl" />
+      <span className="plus plus-tr" />
+      <span className="plus plus-bl" />
+      <span className="plus plus-br" />
+      <p className="mono-label">{label}</p>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <p className={`font-mono text-[20px] tabular-nums ${toneClass}`}>{value}</p>
+        <p className="truncate text-[12px] text-tertiary">{detail}</p>
+      </div>
+    </>
+  );
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <div className={className}>
+      {content}
+    </div>
+  );
+}
+
+function Logo({ url, name, domain }: { url?: string; name?: string; domain?: string }) {
+  const fallbackUrl = domain
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
+    : null;
+  const [src, setSrc] = useState(url ?? fallbackUrl ?? null);
+
+  if (src) {
     return (
       <img
-        src={url}
+        src={src}
         className="h-9 w-9 shrink-0 border border-border bg-white object-contain p-1"
-        alt=""
-        onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
+        alt={name ?? ""}
+        onError={() => {
+          if (src !== fallbackUrl && fallbackUrl) {
+            setSrc(fallbackUrl);
+          } else {
+            setSrc(null);
+          }
+        }}
       />
     );
   }

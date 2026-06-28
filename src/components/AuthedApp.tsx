@@ -4,9 +4,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import AppShell from "./AppShell";
 import Splash from "./Splash";
+import Home from "../pages/Home";
 import Pipeline from "../pages/Pipeline";
 import Dashboard from "../pages/Dashboard";
 import Integrations from "../pages/Integrations";
+import Review from "../pages/Review";
+import Setup from "../pages/Setup";
 import Settings from "../pages/Settings";
 import Onboarding from "../pages/Onboarding";
 
@@ -52,11 +55,14 @@ export default function AuthedApp() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path="/" element={<Pipeline />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/pipeline" element={<Pipeline />} />
+        <Route path="/setup" element={<Setup />} />
         <Route path="/deal/:accountId" element={<Dashboard />} />
+        <Route path="/review" element={<Review />} />
         <Route path="/integrations" element={<Integrations />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Pipeline />} />
+        <Route path="*" element={<Home />} />
       </Route>
     </Routes>
   );

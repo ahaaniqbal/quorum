@@ -185,9 +185,9 @@ export const listPipeline = query({
           account.status === "actioned" ||
           actions.some((a) => a.status === "done");
 
-        // Derive the furthest stage reached.
+        // Derive the furthest stage reached. Voice qualification is a signal,
+        // not a pipeline spine stage; score/booked carry that detail.
         let stage = "enriched";
-        if (latest?.status === "ended") stage = "qualified";
         if (committee > 0) stage = "committee";
         if (drafts.length > 0) stage = "outreach";
         if (actioned) stage = "actioned";
@@ -213,5 +213,86 @@ export const listPipeline = query({
       })
     );
     return rows.sort((a, b) => b.lastActivity - a.lastActivity);
+  },
+});
+
+export const listReviewQueue = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    const allAccounts = await ctx.db.query("accounts").collect();
+    const accounts = allAccounts.filter(
+      (account) => account.userId === undefined || account.userId === userId
+    );
+
+    const draftRows: any[] = [];
+    const actionRows: any[] = [];
+
+    for (const account of accounts) {
+      const contacts = await ctx.db
+        .query("contacts")
+        .withIndex("by_account", (q) => q.eq("accountId", account._id))
+        .collect();
+      const contactById = new Map(contacts.map((contact) => [String(contact._id), contact]));
+
+      const drafts = await ctx.db
+        .query("drafts")
+        .withIndex("by_account", (q) => q.eq("accountId", account._id))
+        .collect();
+      for (const draft of drafts) {
+        const contact = contactById.get(String(draft.contactId));
+        draftRows.push({
+          ...draft,
+          account: {
+            _id: account._id,
+            companyName: account.companyName,
+            domain: account.domain,
+            logoUrl: account.logoUrl,
+          },
+          contact: contact
+            ? {
+                _id: contact._id,
+                name: contact.name,
+                title: contact.title,
+                email: contact.email,
+                role: contact.role,
+                status: contact.status,
+              }
+            : null,
+        });
+      }
+
+      const actions = await ctx.db
+        .query("actions")
+        .withIndex("by_account", (q) => q.eq("accountId", account._id))
+        .collect();
+      for (const action of actions) {
+        if (!["pending", "failed", "skipped"].includes(action.status)) continue;
+        actionRows.push({
+          ...action,
+          account: {
+            _id: account._id,
+            companyName: account.companyName,
+            domain: account.domain,
+            logoUrl: account.logoUrl,
+          },
+        });
+      }
+    }
+
+    draftRows.sort((a, b) => b._creationTime - a._creationTime);
+    actionRows.sort((a, b) => b._creationTime - a._creationTime);
+
+    return {
+      drafts: draftRows,
+      actions: actionRows,
+      counts: {
+        pendingDrafts: draftRows.filter((draft) => draft.status === "draft").length,
+        approvedDrafts: draftRows.filter((draft) => draft.status === "approved").length,
+        skippedDrafts: draftRows.filter((draft) => draft.status === "skipped").length,
+        sentDrafts: draftRows.filter((draft) => draft.status === "sent").length,
+        actionIssues: actionRows.length,
+      },
+    };
   },
 });

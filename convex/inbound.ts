@@ -24,11 +24,14 @@ export const workLead = internalAction({
     });
     // Maps the committee (staggered inserts) and, via finishMapping, fires the
     // deal-brain chain (graph + next moves).
-    await ctx.runAction(api.committee.mapCommittee, { accountId: accountId as any });
-    // Draft once the committee has landed (inserts are scheduled, not immediate).
-    await ctx.scheduler.runAfter(8000, api.outreach.generateOutreach, {
-      accountId: accountId as any,
-    });
+    const mapped = await ctx.runAction(api.committee.mapCommittee, { accountId: accountId as any });
+    // Draft once verified committee members have landed. If no one is verified,
+    // keep the account grounded and wait for a call/manual confirmation.
+    if (mapped > 0) {
+      await ctx.scheduler.runAfter(8000, api.outreach.generateOutreach, {
+        accountId: accountId as any,
+      });
+    }
   },
 });
 

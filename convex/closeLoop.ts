@@ -2,7 +2,7 @@ import { mutation, internalMutation, internalAction } from "./_generated/server"
 import { internal, api } from "./_generated/api";
 import { v } from "convex/values";
 
-// Fires the cross-tool action loop. Each action lights up pending → done with a
+// Fires the cross-tool action loop. Each action lights up pending to done with a
 // stagger for visual effect. Slack hits Composio for real when a key is present;
 // everything else simulates (and is trivially swapped for real Composio calls).
 export const fireActions = mutation({
@@ -20,8 +20,8 @@ export const fireActions = mutation({
 
     const defs = [
       { type: "slack", label: `Slack → #revenue: ${company} qualified, meeting booked` },
-      { type: "hubspot", label: `HubSpot: deal created — ${company} pilot` },
-      { type: "calendar", label: `Calendar: invite sent — Thursday 11:00am` },
+      { type: "hubspot", label: `HubSpot: deal created for ${company} pilot` },
+      { type: "calendar", label: `Calendar: invite sent for Thursday 11:00am` },
       {
         type: "email",
         label: `Outreach sent to ${committeeCount} committee members`,
@@ -31,7 +31,7 @@ export const fireActions = mutation({
     await ctx.db.insert("events", {
       accountId,
       type: "action_fired",
-      label: "Closing the loop — firing actions across the stack…",
+      label: "Closing the loop: firing actions across the stack…",
     });
 
     let t = 250;
@@ -81,7 +81,7 @@ export const complete = internalAction({
     if (type === "slack") {
       result = await execComposio("SLACK_SENDS_A_MESSAGE_TO_A_SLACK_CHANNEL", {
         channel: process.env.SLACK_CHANNEL ?? "#revenue",
-        text: `:tada: ${account?.companyName ?? "Account"} qualified — meeting booked. Buying committee of ${committee} mapped. (via Quorum)`,
+        text: `:tada: ${account?.companyName ?? "Account"} qualified. Meeting booked. Buying committee of ${committee} mapped. (via Quorum)`,
       });
     } else if (type === "hubspot") {
       result = await execComposio("HUBSPOT_CREATE_CONTACT_OBJECT_WITH_PROPERTIES", {
@@ -92,7 +92,7 @@ export const complete = internalAction({
       });
     } else if (type === "calendar") {
       result = await execComposio("GOOGLECALENDAR_CREATE_EVENT", {
-        summary: `Quorum pilot — ${account?.companyName}`,
+        summary: `Quorum pilot: ${account?.companyName}`,
         description: `Qualification follow-up with ${primary?.name ?? "the prospect"}.`,
         attendees: primary?.email ? [primary.email] : [],
       });
@@ -190,7 +190,7 @@ async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<numb
   const inbox = process.env.AGENTMAIL_INBOX ?? "quorum@agentmail.to";
   let sent = 0;
   for (const draft of data.drafts ?? []) {
-    if (draft.status === "sent") continue;
+    if (draft.status !== "approved") continue;
     const contact = data.contacts.find((c: any) => c._id === draft.contactId);
     if (!contact?.email) continue;
     try {
@@ -212,4 +212,3 @@ async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<numb
   }
   return sent;
 }
-

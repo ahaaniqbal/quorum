@@ -21,7 +21,7 @@ export default function SignIn() {
     } catch (err: any) {
       setError(
         flow === "signUp"
-          ? "Could not create account — that email may already be registered. Try signing in."
+          ? "Could not create account. That email may already be registered. Try signing in."
           : "Invalid email or password."
       );
       setLoading(null);
@@ -88,9 +88,9 @@ export default function SignIn() {
           <button
             onClick={guest}
             disabled={loading !== null}
-            className="btn-primary mt-5 h-10 w-full"
+            className="btn-primary mt-5 h-9 w-full"
           >
-            {loading === "guest" ? "Starting…" : "Explore as guest — no signup →"}
+            {loading === "guest" ? "Starting…" : "Explore as guest, no signup →"}
           </button>
 
           <div className="my-4 flex items-center gap-3">
@@ -102,7 +102,7 @@ export default function SignIn() {
           <button
             onClick={google}
             disabled={loading !== null}
-            className="btn-secondary h-10 w-full gap-2.5"
+            className="btn-secondary h-9 w-full gap-2.5"
           >
             <GoogleIcon />
             {loading === "google" ? "Redirecting…" : "Continue with Google"}
@@ -127,7 +127,7 @@ export default function SignIn() {
             <button
               type="submit"
               disabled={loading !== null}
-              className="btn-secondary h-10 w-full"
+              className="btn-secondary h-9 w-full"
             >
               {loading === "email"
                 ? "Working…"

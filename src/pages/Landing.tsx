@@ -68,7 +68,7 @@ export default function Landing() {
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
             <span className="mono-label normal-case tracking-normal text-secondary">
-              works the whole buying committee — live
+              works the whole buying committee live
             </span>
           </div>
 
@@ -96,7 +96,7 @@ export default function Landing() {
                   className="h-11 w-full rounded border border-border bg-surface pl-8 pr-4 font-mono text-[14px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
                 />
               </div>
-              <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
+              <button type="submit" disabled={loading} className="btn-primary h-9 px-4">
                 {loading ? "Spinning up…" : "Start →"}
               </button>
             </div>

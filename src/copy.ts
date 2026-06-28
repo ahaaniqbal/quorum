@@ -33,9 +33,9 @@ export const copy = {
 
   edge: {
     personalEmail:
-      "That looks like a personal email. Quorum works best with a work email — try a sample company below.",
+      "That looks like a personal email. Quorum works best with a work email. Try a sample company below.",
     invalidEmail: "That email doesn't look right. Check it and try again.",
-    noData: "Limited data on that company — running the flow with what we have.",
+    noData: "Limited data on that company. Running the flow with what we have.",
     timeoutFallback: "That took too long, so we loaded sample data to keep things moving.",
     genericError: "Something hiccuped on that step. Quorum kept going with the rest.",
   },

@@ -31,6 +31,15 @@ export const mapCommittee = action({
       ? fiber!
       : committeeForDomain(account.domain, account.companyName);
 
+    if (members.length === 0) {
+      await ctx.runMutation(internal.committee.recordMapStart, {
+        accountId,
+        label: `No verified committee members found for ${account.companyName}. Keeping the account grounded to known contacts only.`,
+      });
+      await ctx.scheduler.runAfter(400, api.brain.runBrainChain, { accountId });
+      return 0;
+    }
+
     await ctx.runMutation(internal.committee.recordMapStart, {
       accountId,
       label: `${usedFiber ? "Fiber people-search:" : "Mapping"} the buying committee at ${account.companyName}…`,
@@ -104,7 +113,7 @@ export const addMember = internalMutation({
     await ctx.db.insert("events", {
       accountId: a.accountId,
       type: "committee_mapped",
-      label: `Found ${a.name} — ${a.title} · ${ROLE_LABEL[a.role] ?? "Stakeholder"}`,
+      label: `Found ${a.name}: ${a.title} · ${ROLE_LABEL[a.role] ?? "Stakeholder"}`,
     });
   },
 });
@@ -116,7 +125,7 @@ export const finishMapping = internalMutation({
     await ctx.db.insert("events", {
       accountId,
       type: "committee_mapped",
-      label: `Buying committee mapped — ${count} decision-makers identified`,
+      label: `Buying committee mapped: ${count} decision-makers identified`,
     });
     // Build the committee graph + next moves from the people we just found.
     await ctx.scheduler.runAfter(400, api.brain.runBrainChain, { accountId });

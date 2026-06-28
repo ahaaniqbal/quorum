@@ -14,8 +14,8 @@ export default {
         text: "#ededed", // gray-1000 (primary)
         secondary: "#a0a0a0", // gray-900 (secondary)
         tertiary: "#6e6e6e", // gray-700 (tertiary / disabled)
-        accent: "#5B47EB",
-        "accent-soft": "#8472f3",
+        accent: "#F97316",
+        "accent-soft": "#FDBA74",
         good: "#3FB950",
         warn: "#D29922",
         risk: "#F85149",
@@ -43,7 +43,7 @@ export default {
       boxShadow: {
         cell: "0 2px 2px rgba(0,0,0,0.18)",
         pop: "0 1px 1px rgba(0,0,0,0.2), 0 8px 16px -4px rgba(0,0,0,0.4), 0 24px 32px -8px rgba(0,0,0,0.5)",
-        "focus": "0 0 0 2px #0a0a0a, 0 0 0 4px rgba(91,71,235,0.7)",
+        focus: "0 0 0 2px #0a0a0a, 0 0 0 4px rgba(249,115,22,0.7)",
       },
       keyframes: {
         "fade-up": {

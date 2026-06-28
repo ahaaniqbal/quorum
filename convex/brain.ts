@@ -71,7 +71,7 @@ export const saveMemory = internalMutation({
     await ctx.db.insert("events", {
       accountId,
       type: "enriched",
-      label: `Brain updated — ${whatChanged}`,
+      label: `Brain updated: ${whatChanged}`,
     });
   },
 });
@@ -85,7 +85,7 @@ export const saveGraph = internalMutation({
     await ctx.db.insert("events", {
       accountId,
       type: "committee_mapped",
-      label: `Committee graph built — ${n} stakeholder${n === 1 ? "" : "s"}, ${g} gap${g === 1 ? "" : "s"} flagged`,
+      label: `Committee graph built: ${n} stakeholder${n === 1 ? "" : "s"}, ${g} gap${g === 1 ? "" : "s"} flagged`,
     });
   },
 });
@@ -98,12 +98,12 @@ export const saveMoves = internalMutation({
     await ctx.db.insert("events", {
       accountId,
       type: "outreach_drafted",
-      label: top ? `Next move — ${top}` : "Next moves computed",
+      label: top ? `Next move: ${top}` : "Next moves computed",
     });
   },
 });
 
-// ── 1. Memory Synthesis ──
+// 1. Memory Synthesis
 export const synthesizeMemory = action({
   args: { accountId: v.id("accounts"), conversationId: v.id("conversations") },
   handler: async (ctx, { accountId, conversationId }): Promise<any> => {
@@ -127,7 +127,7 @@ export const synthesizeMemory = action({
   },
 });
 
-// ── 2. Committee Inference (graph builder) ──
+// 2. Committee Inference (graph builder)
 export const inferCommittee = action({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<any> => {

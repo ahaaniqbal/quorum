@@ -90,7 +90,7 @@ export default function Stepper({
         {done ? (
           <span className="pill bg-good/10 text-good">✓ Account worked</span>
         ) : autopilot ? (
-          <button onClick={onToggleAutopilot} className="btn-secondary h-7 px-3 text-[12px]">
+          <button onClick={onToggleAutopilot} className="btn-secondary h-9 px-3 text-[12px]">
             Pause
           </button>
         ) : (
@@ -98,11 +98,11 @@ export default function Stepper({
             <button
               onClick={onRunNext}
               disabled={callLive || !nextLabel}
-              className="btn-primary h-7 px-3 text-[12px]"
+              className="btn-primary h-9 px-3 text-[12px]"
             >
               {nextLabel ? `Run: ${nextLabel} →` : "Waiting…"}
             </button>
-            <button onClick={onToggleAutopilot} className="btn-secondary h-7 px-3 text-[12px]">
+            <button onClick={onToggleAutopilot} className="btn-secondary h-9 px-3 text-[12px]">
               Resume
             </button>
           </div>
