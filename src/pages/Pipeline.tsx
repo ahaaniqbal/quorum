@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
@@ -41,12 +41,16 @@ export default function Pipeline() {
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
   const sampleId = useQuery(api.queries.getSampleAccountId, {});
   const ingest = useQuery(api.inbound.getIngestInfo, {});
-  const [text, setText] = useState("");
+  const [emails, setEmails] = useState<string[]>([]);
+  const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const webhookUrl = ingest?.url ?? null;
 
@@ -54,17 +58,60 @@ export default function Pipeline() {
     if (sampleId) navigate(`/deal/${sampleId}`);
   }
 
+  // Tokenize pasted/typed/CSV text into deduped email pills. Skips invalid and
+  // personal-domain addresses and notes how many were dropped.
+  function addTokens(raw: string) {
+    const { valid, skipped } = parseEmails(raw);
+    if (!valid.length && !skipped) return;
+    setEmails((prev) => {
+      const seen = new Set(prev);
+      return [...prev, ...valid.filter((e) => !seen.has(e) && (seen.add(e), true))];
+    });
+    setNote(
+      skipped ? `Skipped ${skipped} personal/invalid address${skipped === 1 ? "" : "es"}.` : null
+    );
+    setError(null);
+  }
+
+  function removePill(email: string) {
+    setEmails((prev) => prev.filter((e) => e !== email));
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (["Enter", ",", " ", "Tab"].includes(e.key) && draft.trim()) {
+      e.preventDefault();
+      addTokens(draft);
+      setDraft("");
+    } else if (e.key === "Backspace" && !draft && emails.length) {
+      removePill(emails[emails.length - 1]);
+    }
+  }
+
+  async function onCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-uploading the same file
+    if (!file) return;
+    try {
+      const txt = await file.text();
+      addTokens(txt); // addTokens regex-matches emails anywhere, so CSV cells work
+    } catch {
+      setError(copy.edge.genericError);
+    }
+  }
+
   async function onRun(e: React.FormEvent) {
     e.preventDefault();
-    const { valid, skipped } = parseEmails(text);
-    if (valid.length === 0)
-      return setError(skipped ? copy.edge.personalEmail : copy.edge.invalidEmail);
+    // Fold any half-typed address in before working.
+    const pending = parseEmails(draft).valid;
+    const all = Array.from(new Set([...emails, ...pending]));
+    if (all.length === 0) return setError(copy.edge.invalidEmail);
     setError(null);
+    setDraft("");
     // One email → open the deal. Many → fan out and let them stream in.
-    if (valid.length === 1) {
+    if (all.length === 1) {
       setLoading(true);
       try {
-        const accountId = await enrich({ email: valid[0] });
+        const accountId = await enrich({ email: all[0] });
         navigate(`/deal/${accountId}`);
       } catch {
         setError(copy.edge.genericError);
@@ -72,15 +119,16 @@ export default function Pipeline() {
       }
       return;
     }
-    await runBatch(valid);
+    await runBatch(all);
   }
 
-  async function runBatch(emails: string[]) {
+  async function runBatch(list: string[]) {
     setLoading(true);
     try {
-      const { queued } = await bulkIngest({ emails });
+      const { queued } = await bulkIngest({ emails: list });
       setWorking(queued);
-      setText("");
+      setEmails([]);
+      setNote(null);
       setTimeout(() => setWorking(null), 60000);
     } catch {
       setError(copy.edge.genericError);
@@ -140,16 +188,72 @@ export default function Pipeline() {
             </span>
           </div>
           <form onSubmit={onRun} noValidate>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={"Paste inbound emails — one per line\nlead@acme.com\nfounder@beta.io"}
-              rows={3}
-              className="w-full resize-y rounded border border-border bg-surface px-3.5 py-2.5 font-mono text-[14px] text-text outline-none transition-colors duration-150 placeholder:text-tertiary focus:border-border-strong"
-            />
+            {/* Email-pill input: paste/type many, remove any with × */}
+            <div
+              onClick={() => inputRef.current?.focus()}
+              className="flex min-h-[60px] cursor-text flex-wrap content-start items-center gap-1.5 rounded border border-border bg-surface p-2 transition-colors duration-150 focus-within:border-border-strong"
+            >
+              {emails.map((e) => (
+                <span
+                  key={e}
+                  className="inline-flex items-center gap-1.5 rounded border border-border bg-surface2 py-1 pl-2.5 pr-1.5 font-mono text-[12px] text-text"
+                >
+                  {e}
+                  <button
+                    type="button"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      removePill(e);
+                    }}
+                    className="flex h-4 w-4 items-center justify-center rounded-sm text-tertiary transition-colors hover:bg-border hover:text-text"
+                    aria-label={`Remove ${e}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onKeyDown}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  addTokens(e.clipboardData.getData("text"));
+                  setDraft("");
+                }}
+                onBlur={() => {
+                  if (draft.trim()) {
+                    addTokens(draft);
+                    setDraft("");
+                  }
+                }}
+                placeholder={emails.length ? "" : "Paste or type inbound emails…"}
+                className="h-7 min-w-[180px] flex-1 bg-transparent px-1.5 font-mono text-[14px] text-text outline-none placeholder:text-tertiary"
+              />
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button type="submit" disabled={loading} className="btn-primary h-11 px-5">
-                {loading ? "Working…" : "Work inbound →"}
+                {loading
+                  ? "Working…"
+                  : emails.length > 1
+                    ? `Work ${emails.length} inbounds →`
+                    : "Work inbound →"}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.txt,text/csv,text/plain"
+                onChange={onCsv}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="btn-secondary h-11 px-4"
+                title="Upload a CSV or text file of emails"
+              >
+                ⇪ Upload CSV
               </button>
               <button
                 type="button"
@@ -171,6 +275,7 @@ export default function Pipeline() {
               </button>
             </div>
           </form>
+          {note && <p className="mt-2 text-[12px] text-tertiary">{note}</p>}
           {working != null && (
             <p className="mt-2.5 flex items-center gap-2 text-[12px] text-accent-soft">
               <span className="h-3 w-3 animate-spin rounded-full border border-accent-soft border-t-transparent" />
