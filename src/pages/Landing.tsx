@@ -131,40 +131,26 @@ function Navbar() {
 
 function Hero() {
   return (
-    <section id="top" className="relative flex min-h-screen flex-col overflow-hidden">
-      {/* Arc glow background */}
-      <img
-        src="/hero-bg.svg"
-        alt=""
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 -bottom-[14%] z-0 mx-auto w-full max-w-[1700px] select-none opacity-90"
-      />
-      {/* fade the arc into the page bottom so the next section reads cleanly */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-40 bg-gradient-to-t from-bg to-transparent" />
-      <div className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-1 flex-col px-6 pb-16 pt-16 text-center">
-        <Reveal>
-          <p className="mono-label text-accent-soft">_AI account execution</p>
-          <h1 className="mx-auto mt-7 max-w-[15ch] text-balance text-[42px] font-semibold leading-[1.03] tracking-tight sm:text-[74px]">
-            The <span className="text-accent">AI account executive</span> that works every inbound account.
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-pretty text-[16px] leading-relaxed text-secondary sm:text-[18px]">
-            Quorum turns a new lead into researched account context, a mapped buying committee,
-            approved outreach, CRM updates, meetings, and team alerts. Humans review the risky work.
-            Quorum handles the rest.
-          </p>
-        </Reveal>
-        <Reveal delay={0.1} className="mt-auto pt-20">
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href={authUrl("/signup")} className="btn-secondary h-12 rounded-none px-6 text-[14px]">
-              Create workspace
-            </a>
-            <a href={authUrl("/signin")} className="btn-primary h-12 rounded-none px-6 text-[14px]">
-              Preview product
-              <ArrowRight size={16} strokeWidth={2.2} />
-            </a>
-          </div>
-        </Reveal>
-      </div>
+    <section id="top" className="relative px-6 pb-16 pt-24 text-center sm:pt-28">
+      <Reveal className="mx-auto max-w-[1300px]">
+        <p className="mono-label text-accent-soft">_AI account execution</p>
+        <h1 className="mx-auto mt-7 max-w-[1180px] text-balance text-[38px] font-semibold leading-[1.06] tracking-tight sm:text-[62px]">
+          The <span className="text-accent">AI account executive</span> that works every inbound account.
+        </h1>
+        <p className="mx-auto mt-6 max-w-[68rem] text-balance text-[16px] leading-relaxed text-secondary sm:text-[18px]">
+          Quorum turns a new lead into researched account context, a mapped buying committee, approved
+          outreach, CRM updates, meetings, and team alerts. Humans review the risky work. Quorum handles the rest.
+        </p>
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a href={authUrl("/signup")} className="btn-secondary h-12 rounded-none px-6 text-[14px]">
+            Create workspace
+          </a>
+          <a href={authUrl("/signin")} className="btn-primary h-12 rounded-none px-6 text-[14px]">
+            Preview product
+            <ArrowRight size={16} strokeWidth={2.2} />
+          </a>
+        </div>
+      </Reveal>
     </section>
   );
 }
