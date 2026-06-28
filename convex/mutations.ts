@@ -1,8 +1,8 @@
-import { mutation } from "./_generated/server";
+import { mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-export const createAccount = mutation({
+export const createAccount = internalMutation({
   args: {
     userId: v.optional(v.id("users")),
     domain: v.string(),
@@ -32,21 +32,21 @@ export const createAccount = mutation({
   },
 });
 
-export const setAccountStatus = mutation({
+export const setAccountStatus = internalMutation({
   args: { accountId: v.id("accounts"), status: v.string() },
   handler: async (ctx, { accountId, status }) => {
     await ctx.db.patch(accountId, { status });
   },
 });
 
-export const setAccountSummary = mutation({
+export const setAccountSummary = internalMutation({
   args: { accountId: v.id("accounts"), summary: v.string() },
   handler: async (ctx, { accountId, summary }) => {
     await ctx.db.patch(accountId, { summary });
   },
 });
 
-export const addContact = mutation({
+export const addContact = internalMutation({
   args: {
     accountId: v.id("accounts"),
     name: v.string(),
@@ -62,14 +62,14 @@ export const addContact = mutation({
   },
 });
 
-export const setContactStatus = mutation({
+export const setContactStatus = internalMutation({
   args: { contactId: v.id("contacts"), status: v.string() },
   handler: async (ctx, { contactId, status }) => {
     await ctx.db.patch(contactId, { status });
   },
 });
 
-export const createConversation = mutation({
+export const createConversation = internalMutation({
   args: {
     accountId: v.id("accounts"),
     contactId: v.id("contacts"),
@@ -81,7 +81,7 @@ export const createConversation = mutation({
   },
 });
 
-export const endConversation = mutation({
+export const endConversation = internalMutation({
   args: {
     conversationId: v.id("conversations"),
     summary: v.optional(v.string()),
@@ -91,7 +91,7 @@ export const endConversation = mutation({
   },
 });
 
-export const appendTranscriptLine = mutation({
+export const appendTranscriptLine = internalMutation({
   args: {
     conversationId: v.id("conversations"),
     role: v.string(),
@@ -103,14 +103,14 @@ export const appendTranscriptLine = mutation({
   },
 });
 
-export const setQualification = mutation({
+export const setQualification = internalMutation({
   args: { conversationId: v.id("conversations"), qualification: v.any() },
   handler: async (ctx, { conversationId, qualification }) => {
     await ctx.db.patch(conversationId, { qualification });
   },
 });
 
-export const recordEvent = mutation({
+export const recordEvent = internalMutation({
   args: {
     accountId: v.id("accounts"),
     type: v.string(),
@@ -122,7 +122,7 @@ export const recordEvent = mutation({
   },
 });
 
-export const upsertAction = mutation({
+export const upsertAction = internalMutation({
   args: {
     accountId: v.id("accounts"),
     contactId: v.optional(v.id("contacts")),
@@ -149,7 +149,7 @@ export const upsertAction = mutation({
   },
 });
 
-export const addDraft = mutation({
+export const addDraft = internalMutation({
   args: {
     accountId: v.id("accounts"),
     contactId: v.id("contacts"),
@@ -162,7 +162,7 @@ export const addDraft = mutation({
   },
 });
 
-export const setDraftStatus = mutation({
+export const setDraftStatus = internalMutation({
   args: { draftId: v.id("drafts"), status: v.string() },
   handler: async (ctx, { draftId, status }) => {
     await ctx.db.patch(draftId, { status });

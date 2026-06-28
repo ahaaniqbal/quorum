@@ -1,7 +1,7 @@
 "use node";
 
 import { action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
   KNOWN_COMPANIES,
@@ -262,7 +262,7 @@ export const enrichFromEmail = action({
       source,
     };
 
-    const accountId: string = await ctx.runMutation(api.mutations.createAccount, {
+    const accountId: string = await ctx.runMutation(internal.mutations.createAccount, {
       userId: userId ?? undefined,
       domain,
       companyName: company.companyName,
@@ -272,7 +272,7 @@ export const enrichFromEmail = action({
       summary: company.summary,
     });
 
-    await ctx.runMutation(api.mutations.recordEvent, {
+    await ctx.runMutation(internal.mutations.recordEvent, {
       accountId: accountId as any,
       type: "enriched",
       label: `${fiber ? "Fiber enriched" : "Enriched"} ${company.companyName}: ${company.funding}, ${company.headcount} employees`,
@@ -285,7 +285,7 @@ export const enrichFromEmail = action({
         os!.foundedYear ? `founded ${os!.foundedYear}` : null,
         os!.hq ? `HQ ${os!.hq}` : null,
       ].filter(Boolean);
-      await ctx.runMutation(api.mutations.recordEvent, {
+      await ctx.runMutation(internal.mutations.recordEvent, {
         accountId: accountId as any,
         type: "enriched",
         label: `Orange Slice: LinkedIn snapshot: ${bits.join(" · ")}`,
@@ -304,7 +304,7 @@ export const enrichFromEmail = action({
     const primaryTitle = shouldDefaultFounder(rawPrimaryTitle, company.headcount)
       ? "Founder"
       : rawPrimaryTitle || "Primary contact";
-    const contactId = await ctx.runMutation(api.mutations.addContact, {
+    const contactId = await ctx.runMutation(internal.mutations.addContact, {
       accountId: accountId as any,
       name: primaryName,
       title: primaryTitle,
@@ -317,7 +317,7 @@ export const enrichFromEmail = action({
       isPrimary: true,
     });
 
-    await ctx.runMutation(api.mutations.recordEvent, {
+    await ctx.runMutation(internal.mutations.recordEvent, {
       accountId: accountId as any,
       type: "enriched",
       label: trustedPerson
@@ -326,7 +326,7 @@ export const enrichFromEmail = action({
       payload: { contactId },
     });
 
-    await ctx.runMutation(api.mutations.setAccountStatus, {
+    await ctx.runMutation(internal.mutations.setAccountStatus, {
       accountId: accountId as any,
       status: "active",
     });

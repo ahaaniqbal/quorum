@@ -215,7 +215,7 @@ export const generateOutreachAutonomous = internalAction({
       });
     }
 
-    await ctx.runMutation(api.mutations.recordEvent, {
+    await ctx.runMutation(internal.mutations.recordEvent, {
       accountId,
       type: "outreach_drafted",
       label: `Persona-tuned outreach drafted for ${committee.length} committee members`,

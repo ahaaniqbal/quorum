@@ -1,5 +1,5 @@
 import { internalAction, action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // HydraDB = the temporal account-brain graph. Best-effort and fully isolated:
@@ -50,7 +50,7 @@ export const ingest = internalAction({
         }),
       });
       if (res.ok) {
-        await ctx.runMutation(api.mutations.recordEvent, {
+        await ctx.runMutation(internal.mutations.recordEvent, {
           accountId,
           type: "rethread",
           label: "Account brain synced to HydraDB (temporal graph)",

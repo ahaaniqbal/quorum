@@ -1,4 +1,4 @@
-import { action, internalQuery, internalMutation } from "./_generated/server";
+import { internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { openaiChat } from "./lib/openai";
@@ -104,7 +104,7 @@ export const saveMoves = internalMutation({
 });
 
 // 1. Memory Synthesis
-export const synthesizeMemory = action({
+export const synthesizeMemory = internalAction({
   args: { accountId: v.id("accounts"), conversationId: v.id("conversations") },
   handler: async (ctx, { accountId, conversationId }): Promise<any> => {
     const c: any = await ctx.runQuery(api.voice.getConvoContext, { conversationId });
@@ -128,7 +128,7 @@ export const synthesizeMemory = action({
 });
 
 // 2. Committee Inference (graph builder)
-export const inferCommittee = action({
+export const inferCommittee = internalAction({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<any> => {
     const d: any = await ctx.runQuery(internal.brain.getBrainData, { accountId });
@@ -150,7 +150,7 @@ export const inferCommittee = action({
 });
 
 // ── 3. Next-Move Engine ──
-export const computeNextMoves = action({
+export const computeNextMoves = internalAction({
   args: { accountId: v.id("accounts") },
   handler: async (ctx, { accountId }): Promise<any> => {
     const d: any = await ctx.runQuery(internal.brain.getBrainData, { accountId });
@@ -165,16 +165,16 @@ export const computeNextMoves = action({
 });
 
 // ── The chain: memory → committee → next-move. Run on every conversation. ──
-export const runBrainChain = action({
+export const runBrainChain = internalAction({
   args: {
     accountId: v.id("accounts"),
     conversationId: v.optional(v.id("conversations")),
   },
   handler: async (ctx, { accountId, conversationId }): Promise<void> => {
     if (conversationId) {
-      await ctx.runAction(api.brain.synthesizeMemory, { accountId, conversationId });
+      await ctx.runAction(internal.brain.synthesizeMemory, { accountId, conversationId });
     }
-    await ctx.runAction(api.brain.inferCommittee, { accountId });
-    await ctx.runAction(api.brain.computeNextMoves, { accountId });
+    await ctx.runAction(internal.brain.inferCommittee, { accountId });
+    await ctx.runAction(internal.brain.computeNextMoves, { accountId });
   },
 });

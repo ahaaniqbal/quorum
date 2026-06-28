@@ -343,7 +343,7 @@ export const endCall = action({
     });
 
     // Thicken the deal brain from this conversation: memory → committee → moves.
-    await ctx.scheduler.runAfter(150, api.brain.runBrainChain, {
+    await ctx.scheduler.runAfter(150, internal.brain.runBrainChain, {
       accountId: account._id,
       conversationId,
     });

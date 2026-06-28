@@ -279,11 +279,14 @@ async function execComposio(
 ): Promise<{ ok: boolean; id?: string }> {
   const key = process.env.COMPOSIO_API_KEY;
   if (!key) return { ok: false };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
     const res = await fetch(`https://backend.composio.dev/api/v3/tools/execute/${slug}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": key },
       body: JSON.stringify({ user_id: "default", arguments: args }),
+      signal: ctrl.signal,
     });
     const j: any = await res.json().catch(() => ({}));
     if (res.ok && j?.successful !== false && !j?.error) {
@@ -292,6 +295,8 @@ async function execComposio(
     return { ok: false };
   } catch {
     return { ok: false };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -425,14 +430,17 @@ async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<numb
     if (draft.status !== "approved") continue;
     const contact = data.contacts.find((c: any) => String(c._id) === String(draft.contactId));
     if (!contact?.email) continue;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
       const res = await fetch(`https://api.agentmail.to/v0/inboxes/${inbox}/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({ to: contact.email, subject: draft.subject, text: draft.body }),
+        signal: ctrl.signal,
       });
       if (res.ok) {
-        await ctx.runMutation(api.mutations.setDraftStatus, {
+        await ctx.runMutation(internal.mutations.setDraftStatus, {
           draftId: draft._id,
           status: "sent",
         });
@@ -440,6 +448,8 @@ async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<numb
       }
     } catch {
       // skip this one
+    } finally {
+      clearTimeout(timer);
     }
   }
   return sent;

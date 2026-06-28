@@ -92,7 +92,7 @@ export const mapCommitteeAutonomous = internalAction({
         accountId,
         label: `No verified committee members found for ${account.companyName}. Keeping the account grounded to known contacts only.`,
       });
-      await ctx.scheduler.runAfter(400, api.brain.runBrainChain, { accountId });
+      await ctx.scheduler.runAfter(400, internal.brain.runBrainChain, { accountId });
       return 0;
     }
 
@@ -184,6 +184,6 @@ export const finishMapping = internalMutation({
       label: `Buying committee mapped: ${count} decision-makers identified`,
     });
     // Build the committee graph + next moves from the people we just found.
-    await ctx.scheduler.runAfter(400, api.brain.runBrainChain, { accountId });
+    await ctx.scheduler.runAfter(400, internal.brain.runBrainChain, { accountId });
   },
 });
