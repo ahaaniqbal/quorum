@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 
@@ -6,8 +6,14 @@ export default function SignIn() {
   const { signIn } = useAuthActions();
   const location = useLocation();
   const [flow, setFlow] = useState<"signIn" | "signUp">(
-    location.pathname === "/login" ? "signIn" : "signUp"
+    location.pathname === "/signup" ? "signUp" : "signIn"
   );
+  // Keep the form mode in sync if the route changes without a full remount
+  // (e.g. client-side navigation between /signin and /signup). The in-page
+  // toggle still works because it changes flow without changing the path.
+  useEffect(() => {
+    setFlow(location.pathname === "/signup" ? "signUp" : "signIn");
+  }, [location.pathname]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState<null | "email" | "google" | "guest">(null);

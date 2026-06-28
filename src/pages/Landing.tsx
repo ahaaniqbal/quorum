@@ -17,6 +17,19 @@ import {
   Workflow,
 } from "lucide-react";
 
+// Auth + the product live on the app subdomain. When the landing is served from
+// the marketing root, hand sign-in/sign-up off to the product subdomain (where
+// Convex Auth + Google OAuth origins are configured). On the app subdomain or
+// localhost we stay in-app.
+const APP_ORIGIN = "https://app.tryquorum.xyz";
+function authUrl(path: string): string {
+  if (typeof window === "undefined") return path;
+  const host = window.location.hostname;
+  return host === "tryquorum.xyz" || host === "www.tryquorum.xyz"
+    ? `${APP_ORIGIN}${path}`
+    : path;
+}
+
 const PROOF_EVENTS = [
   { time: "00:04", label: "Company enriched", detail: "funding, headcount, stack, location, source" },
   { time: "00:19", label: "Committee mapped", detail: "champion, buyer, technical owner, gaps" },
@@ -124,13 +137,13 @@ export default function Landing() {
               Quorum handles the rest.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to="/signin" className="btn-primary h-12 rounded-none px-5 text-[14px]">
+              <a href={authUrl("/signin")} className="btn-primary h-12 rounded-none px-5 text-[14px]">
                 Explore Product Preview
                 <ArrowRight size={16} strokeWidth={2.2} />
-              </Link>
-              <Link to="/signin" className="btn-secondary h-12 rounded-none px-5 text-[14px]">
+              </a>
+              <a href={authUrl("/signup")} className="btn-secondary h-12 rounded-none px-5 text-[14px]">
                 Create Workspace
-              </Link>
+              </a>
             </div>
 
             <div className="mt-10 grid max-w-3xl grid-cols-1 border border-border bg-[#0d0d0c] sm:grid-cols-3">
@@ -270,13 +283,13 @@ function LandingHeader() {
           <a href="#moat" className="transition-colors hover:text-text">Moat</a>
         </nav>
         <div className="flex items-center gap-2">
-          <Link to="/login" className="hidden h-9 items-center border border-border bg-surface px-3 text-[12px] font-medium text-secondary transition-colors hover:border-border-strong hover:text-text sm:inline-flex">
+          <a href={authUrl("/signin")} className="hidden h-9 items-center border border-border bg-surface px-3 text-[12px] font-medium text-secondary transition-colors hover:border-border-strong hover:text-text sm:inline-flex">
             Sign in
-          </Link>
-          <Link to="/signin" className="btn-primary h-9 rounded-none px-3">
+          </a>
+          <a href={authUrl("/signup")} className="btn-primary h-9 rounded-none px-3">
             Create Workspace
             <ArrowRight size={14} strokeWidth={2.2} />
-          </Link>
+          </a>
         </div>
       </div>
     </header>
@@ -434,23 +447,23 @@ function WorkspaceCTA() {
             then Quorum drops you directly into the product workspace.
           </p>
         </div>
-        <Link
-          to="/login"
+        <a
+          href={authUrl("/signin")}
           className="h-9 border border-border bg-surface px-3 text-[12px] text-secondary transition-colors hover:border-border-strong hover:text-text"
         >
           Sign in
-        </Link>
+        </a>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <Link to="/signin" className="btn-primary h-12 rounded-none px-5 text-[14px]">
+        <a href={authUrl("/signup")} className="btn-primary h-12 rounded-none px-5 text-[14px]">
           Create Workspace
           <ArrowRight size={16} strokeWidth={2.2} />
-        </Link>
-        <Link to="/signin" className="btn-secondary h-12 rounded-none px-5 text-[14px]">
+        </a>
+        <a href={authUrl("/signin")} className="btn-secondary h-12 rounded-none px-5 text-[14px]">
           Explore Product Preview
           <ChevronRight size={16} strokeWidth={2.2} />
-        </Link>
+        </a>
       </div>
 
       <div className="mt-5 border-t border-border pt-4">

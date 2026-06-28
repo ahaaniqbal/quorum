@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { convex } from "./lib/convex";
@@ -16,6 +16,12 @@ import "./index.css";
 function Root() {
   const isLandingPreview =
     window.location.pathname === "/landing" || window.location.pathname.startsWith("/landing/");
+
+  // The product lives on the app subdomain; the marketing landing lives on the
+  // root domain. On the app subdomain, an unauthenticated visitor should land on
+  // the sign-in flow, not the marketing page (which belongs on tryquorum.xyz).
+  const isAppHost =
+    typeof window !== "undefined" && window.location.hostname.startsWith("app.");
 
   if (isLandingPreview) {
     return (
@@ -37,7 +43,10 @@ function Root() {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/login" element={<SignIn />} />
           <Route path="/signup" element={<SignIn />} />
-          <Route path="*" element={<Landing />} />
+          <Route
+            path="*"
+            element={isAppHost ? <Navigate to="/signin" replace /> : <Landing />}
+          />
         </Routes>
       </Unauthenticated>
       <Authenticated>
