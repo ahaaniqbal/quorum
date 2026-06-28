@@ -5,13 +5,22 @@ import { openaiChat, repSystemPrompt, type ChatMessage } from "./lib/openai";
 
 // ── Context loaders ──────────────────────────────────────────────────────────
 
+async function sellerFor(ctx: any, account: any) {
+  if (!account?.userId) return null;
+  return await ctx.db
+    .query("profiles")
+    .withIndex("by_user", (q: any) => q.eq("userId", account.userId))
+    .first();
+}
+
 export const getContactContext = query({
   args: { contactId: v.id("contacts") },
   handler: async (ctx, { contactId }) => {
     const contact = await ctx.db.get(contactId);
     if (!contact) return null;
     const account = await ctx.db.get(contact.accountId);
-    return { contact, account };
+    const seller = await sellerFor(ctx, account);
+    return { contact, account, seller };
   },
 });
 
@@ -22,12 +31,13 @@ export const getConvoContext = query({
     if (!conversation) return null;
     const contact = await ctx.db.get(conversation.contactId);
     const account = await ctx.db.get(conversation.accountId);
+    const seller = await sellerFor(ctx, account);
     const transcript = await ctx.db
       .query("transcriptLines")
       .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
       .collect();
     transcript.sort((a, b) => a.ts - b.ts);
-    return { conversation, contact, account, transcript };
+    return { conversation, contact, account, seller, transcript };
   },
 });
 
@@ -136,7 +146,7 @@ export const startCall = action({
       accountId: account._id,
       exceptConvo: conversationId as any,
     });
-    const system = repSystemPrompt(account, contact, prior ?? undefined);
+    const system = repSystemPrompt(account, contact, cc.seller, prior ?? undefined);
     const first = contact.name.split(" ")[0];
     const opening =
       (await openaiChat(
@@ -176,7 +186,7 @@ export const replyToCall = action({
       accountId: account._id,
       exceptConvo: conversationId,
     });
-    const system = repSystemPrompt(account, contact, prior ?? undefined);
+    const system = repSystemPrompt(account, contact, c.seller, prior ?? undefined);
     const history: ChatMessage[] = c.transcript.map((l: any) => ({
       role: l.role === "rep" ? "assistant" : "user",
       content: l.text,
@@ -286,15 +296,16 @@ export const getAssistantConfig = query({
     if (!contact) return null;
     const account = await ctx.db.get(contact.accountId);
     if (!account) return null;
+    const seller = await sellerFor(ctx, account);
     const e: any = account.enrichment ?? {};
     const first = contact.name.split(" ")[0] || "there";
     return {
       assistant: {
-        firstMessage: `Hi ${first}, this is the Quorum rep — thanks for dropping your email. I saw ${account.companyName} is behind ${e.funding ?? "your recent momentum"}. Did I catch you at an okay time?`,
+        firstMessage: `Hi ${first}, thanks for dropping your email. I saw ${account.companyName} is behind ${e.funding ?? "your recent momentum"}. Did I catch you at an okay time?`,
         model: {
           provider: "openai",
           model: "gpt-4o",
-          messages: [{ role: "system", content: repSystemPrompt(account, contact) }],
+          messages: [{ role: "system", content: repSystemPrompt(account, contact, seller) }],
         },
         voice: { provider: "vapi", voiceId: "Elliot" },
         transcriber: { provider: "deepgram", model: "nova-2" },

@@ -1,4 +1,5 @@
 import { query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 export const getAccountFull = query({
@@ -6,6 +7,16 @@ export const getAccountFull = query({
   handler: async (ctx, { accountId }) => {
     const account = await ctx.db.get(accountId);
     if (!account) return null;
+    // Tenant guard: only the owner may view a scoped account.
+    const userId = await getAuthUserId(ctx);
+    if (account.userId && account.userId !== userId) return null;
+
+    const seller = account.userId
+      ? await ctx.db
+          .query("profiles")
+          .withIndex("by_user", (q) => q.eq("userId", account.userId!))
+          .first()
+      : null;
 
     const contacts = await ctx.db
       .query("contacts")
@@ -46,6 +57,7 @@ export const getAccountFull = query({
 
     return {
       account,
+      seller,
       contacts,
       latestConversation,
       transcript,
@@ -117,11 +129,16 @@ export const listAccounts = query({
   },
 });
 
-// Pipeline board: every account with derived stats (stage, score, committee size).
+// Pipeline board: the signed-in user's accounts with derived stats.
 export const listPipeline = query({
   args: {},
   handler: async (ctx) => {
-    const accounts = await ctx.db.query("accounts").collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    const accounts = await ctx.db
+      .query("accounts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
     const rows = await Promise.all(
       accounts.map(async (account) => {
         const contacts = await ctx.db

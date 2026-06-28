@@ -1,8 +1,23 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+  ...authTables,
+
+  // The signed-in user's workspace profile (their company + what they sell).
+  profiles: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    companyName: v.string(),
+    product: v.string(), // what they sell (one line)
+    valueProp: v.optional(v.string()),
+    icp: v.optional(v.string()), // ideal customer profile
+    onboarded: v.boolean(),
+  }).index("by_user", ["userId"]),
+
   accounts: defineTable({
+    userId: v.optional(v.id("users")), // owner (the seller)
     domain: v.string(),
     companyName: v.string(),
     enrichment: v.any(), // raw enrichment payload (Fiber / getleads)
@@ -10,7 +25,9 @@ export default defineSchema({
     brandColors: v.optional(v.array(v.string())),
     status: v.string(), // "new" | "active" | "committee_mapped" | "actioned"
     summary: v.optional(v.string()),
-  }).index("by_domain", ["domain"]),
+  })
+    .index("by_domain", ["domain"])
+    .index("by_user", ["userId"]),
 
   contacts: defineTable({
     accountId: v.id("accounts"),

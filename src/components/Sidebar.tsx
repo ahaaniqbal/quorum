@@ -15,6 +15,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { accountId } = useParams();
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
+  const me = useQuery(api.profiles.getMyProfile);
   const reset = useMutation(api.admin.resetDemo);
 
   return (
@@ -35,6 +36,7 @@ export default function Sidebar() {
       <nav className="px-2.5">
         <NavItem to="/" label="Pipeline" icon="▦" end />
         <NavItem to="/integrations" label="Integrations" icon="⚯" />
+        <NavItem to="/settings" label="Settings" icon="⚙" />
       </nav>
 
       {/* Accounts switcher */}
@@ -82,6 +84,25 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-border p-3">
+        {me?.profile && (
+          <button
+            onClick={() => navigate("/settings")}
+            className="mb-2.5 flex w-full items-center gap-2.5 rounded px-1.5 py-1.5 text-left transition-colors hover:bg-surface"
+          >
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+              style={{ background: "var(--accent)" }}
+            >
+              {me.profile.name?.[0]?.toUpperCase() ?? "?"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-medium text-text">{me.profile.name}</p>
+              <p className="mono-label truncate normal-case tracking-normal text-tertiary">
+                {me.profile.companyName}
+              </p>
+            </div>
+          </button>
+        )}
         <div className="mb-2 flex items-center gap-1.5 px-1">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
           <span className="mono-label normal-case tracking-normal text-secondary">

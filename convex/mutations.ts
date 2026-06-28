@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 export const createAccount = mutation({
   args: {
+    userId: v.optional(v.id("users")),
     domain: v.string(),
     companyName: v.string(),
     enrichment: v.any(),
@@ -11,11 +12,21 @@ export const createAccount = mutation({
     summary: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("accounts")
-      .withIndex("by_domain", (q) => q.eq("domain", args.domain))
-      .first();
-    if (existing) return existing._id;
+    // Dedupe per owner so two users can each have the same domain.
+    if (args.userId) {
+      const mine = await ctx.db
+        .query("accounts")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect();
+      const existing = mine.find((a) => a.domain === args.domain);
+      if (existing) return existing._id;
+    } else {
+      const existing = await ctx.db
+        .query("accounts")
+        .withIndex("by_domain", (q) => q.eq("domain", args.domain))
+        .first();
+      if (existing) return existing._id;
+    }
     return await ctx.db.insert("accounts", { ...args, status: "new" });
   },
 });

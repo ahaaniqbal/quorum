@@ -11,6 +11,8 @@
     "convex": "convex dev"
   },
   "dependencies": {
+    "@auth/core": "^0.41.1",
+    "@convex-dev/auth": "^0.0.94",
     "@radix-ui/react-tooltip": "^1.2.10",
     "@vapi-ai/web": "^2.5.2",
     "class-variance-authority": "^0.7.1",

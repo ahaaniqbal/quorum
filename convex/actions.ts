@@ -13,6 +13,7 @@ import {
 } from "./lib/seed";
 import { fiberEmailToPerson, fiberCompany } from "./lib/fiber";
 import { orangeSliceCompany } from "./lib/orangeslice";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Best-effort brand extraction via Firecrawl: scrape the homepage and pull a
 // theme color + logo. Returns null on any failure. Never throws.
@@ -45,6 +46,7 @@ async function tryFirecrawlBrand(
 export const enrichFromEmail = action({
   args: { email: v.string() },
   handler: async (ctx, { email }): Promise<string> => {
+    const userId = await getAuthUserId(ctx);
     const domain = parseDomain(email);
     const isKnown = Boolean(KNOWN_COMPANIES[domain]);
     const base = KNOWN_COMPANIES[domain] ?? fallbackCompany(domain);
@@ -108,6 +110,7 @@ export const enrichFromEmail = action({
     };
 
     const accountId: string = await ctx.runMutation(api.mutations.createAccount, {
+      userId: userId ?? undefined,
       domain,
       companyName: company.companyName,
       enrichment,

@@ -11,39 +11,50 @@ type Contact = {
   isPrimary: boolean;
 };
 
-// Persona-tuned templated email — deterministic, always works (the reliable
-// fallback). OpenAI rewrites it with more nuance when a key is present.
+type Seller = {
+  name?: string;
+  companyName?: string;
+  product?: string;
+  valueProp?: string;
+} | null;
+
+// Persona-tuned templated email — deterministic fallback. Sells the seller's
+// product (from their profile), not a hardcoded one.
 function templateDraft(
   contact: Contact,
   companyName: string,
   signal: string,
-  callOutcome: string
+  callOutcome: string,
+  seller: Seller
 ): { subject: string; body: string } {
   const first = contact.name.split(" ")[0];
+  const co = seller?.companyName ?? "our team";
+  const product = seller?.product ?? "our platform";
+  const value = seller?.valueProp ? ` ${seller.valueProp}.` : "";
   const angle: Record<string, { subject: string; hook: string; close: string }> = {
     economic_buyer: {
-      subject: `${companyName} pipeline efficiency — quick ROI on a pilot`,
-      hook: `Your team just ${signal.toLowerCase()}, which usually means more inbound than reps can multi-thread. Quorum works the whole committee automatically and compounds rep efficiency — most teams see payback inside a quarter on inbound alone.`,
-      close: `Worth 20 minutes to walk through the pilot economics?`,
+      subject: `${companyName} — quick ROI on a ${co} pilot`,
+      hook: `Your team just ${signal.toLowerCase()}, which is exactly when ${product} pays off.${value} Most teams see payback inside a quarter.`,
+      close: `Worth 20 minutes to walk through the economics?`,
     },
     technical: {
-      subject: `Quorum × ${companyName} — integration & security overview`,
-      hook: `Quorum sits on top of your existing CRM and fires into Slack/HubSpot via clean APIs — no rip-and-replace. We're SOC 2 Type II, with scoped data access and full audit logs.`,
-      close: `Happy to send the security pack and a short integration diagram — want me to?`,
+      subject: `${co} × ${companyName} — integration & security overview`,
+      hook: `${product} fits cleanly into your existing stack — no rip-and-replace, scoped access, and a clean API.${value}`,
+      close: `Happy to send the security overview and an integration diagram — want me to?`,
     },
     user: {
-      subject: `Cutting follow-up drop-off for the ${companyName} team`,
-      hook: `Quorum handles enrichment, live qualification, and committee follow-up so reps stop losing the room when a thread goes quiet. Rollout is light — most teams are live on inbound in days.`,
+      subject: `Helping the ${companyName} team with ${product}`,
+      hook: `${product} is built for teams like yours.${value} Rollout is light — most teams are live in days.`,
       close: `Open to a quick look at how it'd fit your workflow?`,
     },
     champion: {
-      subject: `Following up — ${companyName} + Quorum`,
-      hook: `Great talking through the multi-threading gap. Quorum maps the full committee and drafts tailored outreach to each stakeholder automatically — exactly the leverage we discussed.`,
-      close: `I'll bring a tailored pilot plan to our Thursday call.`,
+      subject: `Following up — ${companyName} + ${co}`,
+      hook: `Great talking things through. ${product} is exactly the leverage we discussed.${value}`,
+      close: `I'll bring a tailored pilot plan to our next call.`,
     },
   };
   const a = angle[contact.role] ?? angle.user;
-  const body = `Hi ${first},\n\n${a.hook}\n\nContext from our side: ${callOutcome}\n\n${a.close}\n\n— The Quorum team`;
+  const body = `Hi ${first},\n\n${a.hook}\n\nContext from our side: ${callOutcome}\n\n${a.close}\n\n— ${seller?.name ?? "The team"}${seller?.companyName ? `, ${seller.companyName}` : ""}`;
   return { subject: a.subject, body };
 }
 
@@ -52,9 +63,12 @@ async function openAIDraft(
   contact: Contact,
   companyName: string,
   signal: string,
-  callOutcome: string
+  callOutcome: string,
+  seller: Seller
 ): Promise<{ subject: string; body: string } | null> {
   try {
+    const sellerCo = seller?.companyName ?? "the seller";
+    const product = seller?.product ?? "a B2B product";
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
@@ -64,12 +78,11 @@ async function openAIDraft(
         messages: [
           {
             role: "system",
-            content:
-              'You are an elite B2B account executive writing a short, persona-tuned outreach email (max 110 words). Return JSON {"subject":"","body":""}. No fluff, no exclamation overload, concrete value, one clear ask.',
+            content: `You are ${seller?.name ?? "an account executive"} at ${sellerCo}, selling ${product}${seller?.valueProp ? ` (${seller.valueProp})` : ""}. Write a short, persona-tuned outreach email (max 110 words) to a member of the prospect's buying committee. Return JSON {"subject":"","body":""}. Concrete value tied to their company, one clear ask, no fluff. Sign off as ${seller?.name ?? "the team"} from ${sellerCo}.`,
           },
           {
             role: "user",
-            content: `Company: ${companyName}. Signal: ${signal}. Recipient: ${contact.name}, ${contact.title} (role: ${contact.role}). Persona: ${contact.persona}. Outcome of our call with their colleague: ${callOutcome}. Sell "Quorum", an AI account executive that works the whole buying committee and never forgets context.`,
+            content: `Prospect company: ${companyName}. Signal: ${signal}. Recipient: ${contact.name}, ${contact.title} (committee role: ${contact.role}). Persona: ${contact.persona}. Outcome of our call with their colleague: ${callOutcome}.`,
           },
         ],
       }),
@@ -89,6 +102,7 @@ export const generateOutreach = action({
     const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
     if (!data) return 0;
     const account = data.account;
+    const seller: Seller = data.seller ?? null;
     const signal: string =
       account.enrichment?.signals?.[0] ?? "is scaling its GTM team";
     const callOutcome: string =
@@ -104,9 +118,9 @@ export const generateOutreach = action({
     const drafts = await Promise.all(
       committee.map(async (c) => {
         let draft = key
-          ? await openAIDraft(key, c, account.companyName, signal, callOutcome)
+          ? await openAIDraft(key, c, account.companyName, signal, callOutcome, seller)
           : null;
-        if (!draft) draft = templateDraft(c, account.companyName, signal, callOutcome);
+        if (!draft) draft = templateDraft(c, account.companyName, signal, callOutcome, seller);
         return { contact: c, draft };
       })
     );

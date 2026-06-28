@@ -135,7 +135,7 @@ export default function CallPanel({
                 style={line.role !== "rep" ? { background: "var(--accent)" } : undefined}
               >
                 <span className="mono-label mb-1 block opacity-70">
-                  {line.role === "rep" ? "Quorum Rep" : "Prospect"}
+                  {line.role === "rep" ? "AI Rep" : "Prospect"}
                 </span>
                 {line.text}
               </div>
@@ -145,7 +145,7 @@ export default function CallPanel({
         {sending && (
           <div className="flex justify-start">
             <div className="flex items-center gap-1.5 rounded-lg rounded-tl-sm border border-border bg-surface2 px-3.5 py-2.5">
-              <span className="mono-label">Quorum Rep</span>
+              <span className="mono-label">AI Rep</span>
               <span className="flex gap-1">
                 {[0, 1, 2].map((i) => (
                   <span
