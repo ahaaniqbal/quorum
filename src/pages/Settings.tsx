@@ -154,12 +154,13 @@ export default function Settings() {
                 min={0}
                 max={100}
                 value={autonomy.minScore}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const n = Number(event.target.value);
                   setAutonomy((current) => ({
                     ...current,
-                    minScore: Number(event.target.value),
-                  }))
-                }
+                    minScore: Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0,
+                  }));
+                }}
                 className="h-10 w-full rounded border border-border bg-surface px-3 font-mono text-[13px] text-text outline-none focus:border-border-strong"
               />
             </label>

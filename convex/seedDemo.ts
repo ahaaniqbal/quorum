@@ -1,4 +1,5 @@
 import { mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Public demo accounts (userId = null) so every visitor, including a judge who
 // just opened the app cold, sees a populated pipeline and can open the fully
@@ -9,6 +10,10 @@ type EventSeed = { type: string; label: string };
 export const seedDemo = mutation({
   args: {},
   handler: async (ctx) => {
+    // Require any authenticated session (the app auto-creates an anonymous guest
+    // before calling this) so the demo seed/self-heal can't be triggered or
+    // spammed by an unauthenticated caller hitting the public Convex endpoint.
+    if (!(await getAuthUserId(ctx))) return;
     // Idempotent: skip if the rich hero demo already exists.
     const ramps = await ctx.db
       .query("accounts")

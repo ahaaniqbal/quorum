@@ -104,7 +104,7 @@ function Logo({ url, name, domain }: { url?: string; name?: string; domain?: str
           }
         }}
         className="h-8 w-8 shrink-0 border border-border bg-white object-contain p-1"
-        alt={name}
+        alt={name ?? ""}
       />
     );
   }

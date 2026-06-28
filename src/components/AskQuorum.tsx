@@ -281,7 +281,9 @@ function answerQuestion(
   const progress = deriveProgress(deal);
   const stage = STAGES[progress.reached]?.label ?? "Enriched";
   const topMove = account?.moves?.top_move;
-  const gaps = account?.graph?.gaps ?? [];
+  const gaps: string[] = (account?.graph?.gaps ?? []).map((g: any) =>
+    typeof g === "string" ? g : g?.detail ?? g?.label ?? g?.gap ?? JSON.stringify(g)
+  );
 
   if (
     q.includes("agent") ||

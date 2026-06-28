@@ -19,6 +19,7 @@ export default function CallPanel({
   onEndCall,
   sending,
   callState,
+  voiceMode,
 }: {
   conversation: any;
   transcript: any[];
@@ -27,6 +28,7 @@ export default function CallPanel({
   onEndCall?: () => void;
   sending?: boolean;
   callState: "idle" | "connecting" | "live" | "ended";
+  voiceMode?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -139,10 +141,10 @@ export default function CallPanel({
               className={`flex ${line.role === "rep" ? "justify-start" : "justify-end"}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-3.5 py-2.5 text-[13px] leading-snug ${
+                className={`max-w-[80%] rounded px-3.5 py-2.5 text-[13px] leading-snug ${
                   line.role === "rep"
-                    ? "rounded-tl-sm border border-border bg-surface2 text-text"
-                    : "rounded-tr-sm text-white"
+                    ? "border border-border bg-surface2 text-text"
+                    : "text-white"
                 }`}
                 style={line.role !== "rep" ? { background: "var(--accent)" } : undefined}
               >
@@ -156,7 +158,7 @@ export default function CallPanel({
         </AnimatePresence>
         {sending && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-1.5 rounded-lg rounded-tl-sm border border-border bg-surface2 px-3.5 py-2.5">
+            <div className="flex items-center gap-1.5 rounded border border-border bg-surface2 px-3.5 py-2.5">
               <span className="mono-label">AI Rep</span>
               <span className="flex gap-1">
                 {[0, 1, 2].map((i) => (
@@ -172,8 +174,18 @@ export default function CallPanel({
         )}
       </div>
 
-      {/* Live conversation input: the prospect actually replies to the AI rep */}
-      {callState === "live" && onSend && (
+      {/* Live: a real Vapi voice call is mic-driven (End only); the text fallback
+          lets you type as the prospect. */}
+      {callState === "live" && voiceMode ? (
+        <div className="flex items-center justify-between gap-2 border-t border-border p-3">
+          <span className="pill bg-good/15 text-good">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" /> Listening — speak to the AI rep
+          </span>
+          <button onClick={onEndCall} className="btn-secondary h-9 px-3" title="End call & qualify">
+            End call
+          </button>
+        </div>
+      ) : callState === "live" && onSend ? (
         <div className="border-t border-border p-3">
           <div className="flex items-end gap-2">
             <textarea
@@ -197,7 +209,7 @@ export default function CallPanel({
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {conversation?.summary && callState === "ended" && (
         <div className="border-t border-border px-4 py-3">

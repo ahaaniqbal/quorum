@@ -487,21 +487,26 @@ function CadenceCard({
 }
 
 function CompanyLogo({ account }: { account: any }) {
+  const [failed, setFailed] = useState(false);
   const domain =
     account.domain ||
     account.enrichment?.domain ||
     account.enrichment?.website ||
     fallbackDomain(account.companyName);
+  // Prefer the enrichment-resolved logo, then a favicon; fall back to the
+  // initial-letter avatar if the image 404s.
   const source =
-    domain
+    account.logoUrl ||
+    (domain
       ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`
-      : account.logoUrl || null;
+      : null);
 
-  if (source) {
+  if (source && !failed) {
     return (
       <img
         src={source}
         alt={account.companyName ?? ""}
+        onError={() => setFailed(true)}
         className="h-[30px] w-[30px] shrink-0 border border-border bg-white object-contain p-1"
       />
     );

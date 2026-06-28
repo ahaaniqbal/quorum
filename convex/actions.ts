@@ -23,11 +23,16 @@ async function tryFirecrawlBrand(
 ): Promise<{ color?: string; logoUrl?: string } | null> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) return null;
+  // Bound the request: this is awaited inline on the inbound-enrichment critical
+  // path, so a hung Firecrawl socket must never stall a lead's pipeline.
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
   try {
     const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({ url: `https://${domain}`, formats: ["html"] }),
+      signal: ctrl.signal,
     });
     if (!res.ok) return null;
     const j: any = await res.json();
@@ -41,6 +46,8 @@ async function tryFirecrawlBrand(
     return { color: themeColor, logoUrl };
   } catch {
     return null;
+  } finally {
+    clearTimeout(t);
   }
 }
 

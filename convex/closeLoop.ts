@@ -345,7 +345,9 @@ function extractExternalId(data: any): string {
       return undefined;
     }
     // Slack message timestamp is the canonical receipt for a posted message.
-    if (node.ts != null && (typeof node.ts === "string" || typeof node.ts === "number"))
+    // Only honor it near the top of the payload so a deep, unrelated `ts` on a
+    // HubSpot/Calendar response can't shadow the real created-object id below.
+    if (depth <= 2 && node.ts != null && (typeof node.ts === "string" || typeof node.ts === "number"))
       return String(node.ts);
     // Most providers (HubSpot, Google Calendar) return the created object id.
     for (const key of ID_KEYS) {

@@ -13,8 +13,23 @@ type StartArgs = {
   contactId: Id<"contacts">;
   conversationId: Id<"conversations">;
   onTranscript: (role: "rep" | "prospect", text: string) => void;
+  onLive?: () => void;
   onEnd: () => void;
+  onError?: (message: string) => void;
 };
+
+// Single active call at a time. Kept module-level so the deal room can stop it
+// (End button / navigating away) without threading the instance through React.
+let activeVapi: any = null;
+
+export function stopActiveVapiCall(): void {
+  try {
+    activeVapi?.stop?.();
+  } catch {
+    /* ignore */
+  }
+  activeVapi = null;
+}
 
 // Starts a real in-browser Vapi voice call. The Vapi Web SDK emits transcript
 // events client-side, so we push them straight into Convex; no webhook needed.
@@ -27,6 +42,7 @@ export async function startRealVapiCall(args: StartArgs): Promise<void> {
   if (!mod) throw new Error("@vapi-ai/web not installed");
   const Vapi = mod.default;
   const vapi = new Vapi(PUBLIC_KEY!);
+  activeVapi = vapi;
 
   vapi.on("message", (msg: any) => {
     if (msg?.type === "transcript" && msg?.transcriptType === "final") {
@@ -35,7 +51,16 @@ export async function startRealVapiCall(args: StartArgs): Promise<void> {
     }
   });
 
+  vapi.on("call-start", () => args.onLive?.());
+
+  vapi.on("error", (e: any) => {
+    if (activeVapi === vapi) activeVapi = null;
+    args.onError?.(typeof e === "string" ? e : (e?.message ?? "Voice call error"));
+    args.onEnd();
+  });
+
   vapi.on("call-end", async () => {
+    if (activeVapi === vapi) activeVapi = null;
     try {
       await convex.action(api.voice.finalizeRealCall, {
         conversationId: args.conversationId,

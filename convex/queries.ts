@@ -93,49 +93,6 @@ export const getAccountFull = query({
   },
 });
 
-export const getDealMap = query({
-  args: { accountId: v.id("accounts") },
-  handler: async (ctx, { accountId }) => {
-    const contacts = await ctx.db
-      .query("contacts")
-      .withIndex("by_account", (q) => q.eq("accountId", accountId))
-      .collect();
-    return contacts;
-  },
-});
-
-export const listActivity = query({
-  args: { accountId: v.id("accounts") },
-  handler: async (ctx, { accountId }) => {
-    const events = await ctx.db
-      .query("events")
-      .withIndex("by_account", (q) => q.eq("accountId", accountId))
-      .collect();
-    return events.sort((a, b) => b._creationTime - a._creationTime);
-  },
-});
-
-export const getLiveConversation = query({
-  args: { accountId: v.id("accounts") },
-  handler: async (ctx, { accountId }) => {
-    const conversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_account", (q) => q.eq("accountId", accountId))
-      .collect();
-    const conversation =
-      conversations.sort((a, b) => b._creationTime - a._creationTime)[0] ?? null;
-    if (!conversation) return null;
-
-    const transcript = await ctx.db
-      .query("transcriptLines")
-      .withIndex("by_conversation", (q) => q.eq("conversationId", conversation._id))
-      .collect();
-    transcript.sort((a, b) => a.ts - b.ts);
-
-    return { conversation, transcript };
-  },
-});
-
 // The public demo "hero" account (Ramp) used by "Try a sample company".
 export const getSampleAccountId = query({
   args: {},
@@ -146,24 +103,6 @@ export const getSampleAccountId = query({
       .collect();
     const demo = ramps.find((a) => a.userId === undefined);
     return demo?._id ?? null;
-  },
-});
-
-export const getAccountByDomain = query({
-  args: { domain: v.string() },
-  handler: async (ctx, { domain }) => {
-    return await ctx.db
-      .query("accounts")
-      .withIndex("by_domain", (q) => q.eq("domain", domain))
-      .first();
-  },
-});
-
-export const listAccounts = query({
-  args: {},
-  handler: async (ctx) => {
-    const accounts = await ctx.db.query("accounts").collect();
-    return accounts.sort((a, b) => b._creationTime - a._creationTime);
   },
 });
 

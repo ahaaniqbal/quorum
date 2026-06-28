@@ -1,4 +1,4 @@
-import { action, mutation } from "./_generated/server";
+import { action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
@@ -26,7 +26,7 @@ export const startRethread = action({
       data.contacts.find((c: any) => c.isPrimary);
     if (!target) throw new Error("No contact to re-thread");
 
-    await ctx.runMutation(api.rethread.recordRethread, {
+    await ctx.runMutation(internal.rethread.recordRethread, {
       accountId,
       label: `${target.name} (${target.title ?? "committee"}) from ${data.account.companyName} re-engaged, threaded into the existing account brain with full prior context`,
     });
@@ -60,7 +60,7 @@ export const startRethread = action({
   },
 });
 
-export const recordRethread = mutation({
+export const recordRethread = internalMutation({
   args: { accountId: v.id("accounts"), label: v.string() },
   handler: async (ctx, { accountId, label }) => {
     await ctx.db.insert("events", { accountId, type: "rethread", label });

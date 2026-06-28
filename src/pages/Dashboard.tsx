@@ -24,6 +24,7 @@ import AccountBrainPanel from "../components/AccountBrainPanel";
 import AgentReceiptsPanel from "../components/AgentReceiptsPanel";
 import { deriveProgress, STAGES } from "../lib/stages";
 import { buildClientIntelligence } from "../lib/intelligence";
+import { hasVapiKey, startRealVapiCall, stopActiveVapiCall } from "../lib/vapi";
 
 type Action = "call" | "committee" | "outreach" | "actions";
 
@@ -37,6 +38,8 @@ export default function Dashboard() {
   const startCall = useAction(api.voice.startCall);
   const replyToCall = useAction(api.voice.replyToCall);
   const endCall = useAction(api.voice.endCall);
+  const createVoiceConversation = useMutation(api.voice.createVoiceConversation);
+  const appendRealLine = useMutation(api.voice.appendRealLine);
   const mapCommittee = useAction(api.committee.mapCommittee);
   const generateOutreach = useAction(api.outreach.generateOutreach);
   const fireActions = useMutation(api.closeLoop.fireActions);
@@ -45,12 +48,18 @@ export default function Dashboard() {
   const [autopilot, setAutopilot] = useState(true);
   const [rethreading, setRethreading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const runningRef = useRef<string | null>(null);
 
-  // Reset the autopilot guard when navigating between deals.
+  // Reset the autopilot guard when navigating between deals; tear down any live
+  // voice call so it never leaks across accounts.
   useEffect(() => {
     runningRef.current = null;
     setAutopilot(true);
+    return () => {
+      stopActiveVapiCall();
+      setVoiceMode(false);
+    };
   }, [accountId]);
 
   const account = data?.account;
@@ -86,6 +95,41 @@ export default function Dashboard() {
       else if (action === "actions") await fireActions({ accountId: account._id });
     } catch (e) {
       console.error("[Quorum] autopilot step failed", e);
+      runningRef.current = null;
+    }
+  }
+
+  // The qualification call. When a Vapi public key is configured this is a real
+  // in-browser voice call (mic → assistant); otherwise it falls back to the
+  // OpenAI text-driven rep. Either way the transcript and scorecard stream live.
+  async function startTheCall() {
+    if (!primary || !account || runningRef.current === "call") return;
+    runningRef.current = "call";
+    try {
+      if (hasVapiKey()) {
+        const conversationId = await createVoiceConversation({ contactId: primary._id });
+        setVoiceMode(true);
+        await startRealVapiCall({
+          contactId: primary._id,
+          conversationId,
+          onTranscript: (role, text) =>
+            appendRealLine({ conversationId, role, text }).catch(() => {}),
+          onLive: () => {
+            runningRef.current = null;
+          },
+          onEnd: () => {
+            setVoiceMode(false);
+            runningRef.current = null;
+          },
+          onError: (m) => console.error("[Quorum] voice call error", m),
+        });
+      } else {
+        await startCall({ contactId: primary._id });
+        runningRef.current = null;
+      }
+    } catch (e) {
+      console.error("[Quorum] call failed", e);
+      setVoiceMode(false);
       runningRef.current = null;
     }
   }
@@ -200,7 +244,8 @@ export default function Dashboard() {
             transcript={data.transcript}
             callState={callState}
             sending={sending}
-            onStartCall={() => fire("call")}
+            voiceMode={voiceMode}
+            onStartCall={startTheCall}
             onSend={async (text: string) => {
               if (!convo) return;
               setSending(true);

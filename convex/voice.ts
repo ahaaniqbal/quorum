@@ -1,4 +1,4 @@
-import { action, mutation, query } from "./_generated/server";
+import { action, mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -75,7 +75,7 @@ export const getConvoContext = query({
 
 // Memory across the account: prior call summary + the mapped committee. This is
 // what makes a re-threaded conversation reference real prior context.
-export const priorContext = query({
+export const priorContext = internalQuery({
   args: { accountId: v.id("accounts"), exceptConvo: v.optional(v.id("conversations")) },
   handler: async (ctx, { accountId, exceptConvo }) => {
     const convos = await ctx.db
@@ -105,7 +105,7 @@ export const priorContext = query({
 
 // ── Mutations the actions write through ──────────────────────────────────────
 
-export const createConvo = mutation({
+export const createConvo = internalMutation({
   args: { accountId: v.id("accounts"), contactId: v.id("contacts"), label: v.string() },
   handler: async (ctx, { accountId, contactId, label }) => {
     const conversationId = await ctx.db.insert("conversations", {
@@ -120,7 +120,7 @@ export const createConvo = mutation({
   },
 });
 
-export const appendLine = mutation({
+export const appendLine = internalMutation({
   args: {
     conversationId: v.id("conversations"),
     accountId: v.id("accounts"),
@@ -137,7 +137,7 @@ export const appendLine = mutation({
   },
 });
 
-export const finishCall = mutation({
+export const finishCall = internalMutation({
   args: {
     conversationId: v.id("conversations"),
     accountId: v.id("accounts"),
@@ -175,13 +175,13 @@ export const startCall = action({
       goal: `Open an AI qualification call with ${contact.name} at ${account.companyName}`,
     });
 
-    const conversationId: string = await ctx.runMutation(api.voice.createConvo, {
+    const conversationId: string = await ctx.runMutation(internal.voice.createConvo, {
       accountId: account._id,
       contactId,
       label: `AI rep opened a call with ${contact.name} at ${account.companyName}`,
     });
 
-    const prior: string | null = await ctx.runQuery(api.voice.priorContext, {
+    const prior: string | null = await ctx.runQuery(internal.voice.priorContext, {
       accountId: account._id,
       exceptConvo: conversationId as any,
     });
@@ -197,7 +197,7 @@ export const startCall = action({
       )) ??
       `Hi ${first}, this is the Quorum rep. Thanks for dropping your email. Did I catch you at an okay time?`;
 
-    await ctx.runMutation(api.voice.appendLine, {
+    await ctx.runMutation(internal.voice.appendLine, {
       conversationId: conversationId as any,
       accountId: account._id,
       role: "rep",
@@ -230,14 +230,14 @@ export const replyToCall = action({
     if (!c?.conversation || c.conversation.status !== "live") return null;
     const { account, contact } = c;
 
-    await ctx.runMutation(api.voice.appendLine, {
+    await ctx.runMutation(internal.voice.appendLine, {
       conversationId,
       accountId: account._id,
       role: "prospect",
       text,
     });
 
-    const prior: string | null = await ctx.runQuery(api.voice.priorContext, {
+    const prior: string | null = await ctx.runQuery(internal.voice.priorContext, {
       accountId: account._id,
       exceptConvo: conversationId,
     });
@@ -253,7 +253,7 @@ export const replyToCall = action({
         maxTokens: 180,
       })) ?? "Got it. Tell me a bit more about that.";
 
-    await ctx.runMutation(api.voice.appendLine, {
+    await ctx.runMutation(internal.voice.appendLine, {
       conversationId,
       accountId: account._id,
       role: "rep",
@@ -308,7 +308,7 @@ export const endCall = action({
       summary = qualification.summary;
     }
 
-    await ctx.runMutation(api.voice.finishCall, {
+    await ctx.runMutation(internal.voice.finishCall, {
       conversationId,
       accountId: account._id,
       contactId: c.conversation.contactId,
@@ -359,6 +359,7 @@ export const createVoiceConversation = mutation({
     if (!contact) throw new Error("Contact not found");
     const account = await ctx.db.get(contact.accountId);
     if (!account) throw new Error("Account not found");
+    if (!accountVisible(account, await getAuthUserId(ctx))) throw new Error("Not authorized");
     const conversationId = await ctx.db.insert("conversations", {
       accountId: account._id,
       contactId,
@@ -383,6 +384,7 @@ export const getAssistantConfig = query({
     if (!contact) return null;
     const account = await ctx.db.get(contact.accountId);
     if (!account) return null;
+    if (!accountVisible(account, await getAuthUserId(ctx))) return null;
     const seller = await sellerFor(ctx, account);
     const e: any = account.enrichment ?? {};
     const first = contact.name.split(" ")[0] || "there";
@@ -404,6 +406,10 @@ export const getAssistantConfig = query({
 export const appendRealLine = mutation({
   args: { conversationId: v.id("conversations"), role: v.string(), text: v.string() },
   handler: async (ctx, { conversationId, role, text }) => {
+    const convo = await ctx.db.get(conversationId);
+    if (!convo) return;
+    const account = await ctx.db.get(convo.accountId);
+    if (!accountVisible(account, await getAuthUserId(ctx))) throw new Error("Not authorized");
     await ctx.db.insert("transcriptLines", { conversationId, role, text, ts: Date.now() });
   },
 });

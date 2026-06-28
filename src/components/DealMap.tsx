@@ -5,7 +5,6 @@ import {
   ROLE_COLOR,
   STATUS_PILL,
   STATUS_LABEL,
-  initials,
 } from "../lib/format";
 import Panel from "./Panel";
 import { Star } from "lucide-react";
@@ -176,8 +175,8 @@ function ContactCard({
             {contact.persona ?? "Stakeholder in the buying committee."}
           </TooltipContent>
         </Tooltip>
-        <span className={`pill text-[10px] ${STATUS_PILL[contact.status]}`}>
-          {STATUS_LABEL[contact.status]}
+        <span className={`pill text-[10px] ${STATUS_PILL[contact.status] ?? "bg-secondary/10 text-secondary"}`}>
+          {STATUS_LABEL[contact.status] ?? "New"}
         </span>
         {draft && (
           <button
