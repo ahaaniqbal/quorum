@@ -1,7 +1,30 @@
 import { action, mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
-import { openaiChat, repSystemPrompt, type ChatMessage } from "./lib/openai";
+import { openaiChat, type ChatMessage } from "./lib/openai";
+import { voiceRepPrompt } from "./lib/prompts";
+
+// Build the rep's system prompt: personalized to the seller, primed to discover
+// the buying committee while it talks.
+function buildRepSystem(account: any, contact: any, seller: any, prior?: string | null) {
+  const e: any = account?.enrichment ?? {};
+  const context = [
+    e.industry,
+    e.headcount ? `${e.headcount} employees` : null,
+    e.funding,
+    Array.isArray(e.signals) && e.signals.length ? `Signals: ${e.signals.join("; ")}` : null,
+    prior ? `Prior context on this account: ${prior}` : null,
+  ]
+    .filter(Boolean)
+    .join(". ");
+  return voiceRepPrompt({
+    sellerCompany: seller?.companyName ?? "Quorum",
+    prospectName: contact.name,
+    prospectTitle: contact.title ?? "",
+    prospectCompany: account.companyName,
+    prospectContext: context || "A B2B company.",
+  });
+}
 
 // ── Context loaders ──────────────────────────────────────────────────────────
 
@@ -146,7 +169,7 @@ export const startCall = action({
       accountId: account._id,
       exceptConvo: conversationId as any,
     });
-    const system = repSystemPrompt(account, contact, cc.seller, prior ?? undefined);
+    const system = buildRepSystem(account, contact, cc.seller, prior);
     const first = contact.name.split(" ")[0];
     const opening =
       (await openaiChat(
@@ -186,7 +209,7 @@ export const replyToCall = action({
       accountId: account._id,
       exceptConvo: conversationId,
     });
-    const system = repSystemPrompt(account, contact, c.seller, prior ?? undefined);
+    const system = buildRepSystem(account, contact, c.seller, prior);
     const history: ChatMessage[] = c.transcript.map((l: any) => ({
       role: l.role === "rep" ? "assistant" : "user",
       content: l.text,
@@ -260,6 +283,12 @@ export const endCall = action({
       qualification,
       summary,
     });
+
+    // Thicken the deal brain from this conversation: memory → committee → moves.
+    await ctx.scheduler.runAfter(150, api.brain.runBrainChain, {
+      accountId: account._id,
+      conversationId,
+    });
   },
 });
 
@@ -305,7 +334,7 @@ export const getAssistantConfig = query({
         model: {
           provider: "openai",
           model: "gpt-4o",
-          messages: [{ role: "system", content: repSystemPrompt(account, contact, seller) }],
+          messages: [{ role: "system", content: buildRepSystem(account, contact, seller) }],
         },
         voice: { provider: "vapi", voiceId: "Elliot" },
         transcriber: { provider: "deepgram", model: "nova-2" },

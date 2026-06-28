@@ -10,21 +10,33 @@ import {
 import Panel from "./Panel";
 import { Avatar } from "./Avatar";
 import { copy } from "../copy";
+import CommitteeGraph from "./CommitteeGraph";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 
 export default function DealMap({
   contacts,
   drafts,
+  graph,
+  moves,
   onMapCommittee,
   mapping,
 }: {
   contacts: any[];
   drafts: any[];
+  graph?: any;
+  moves?: any;
   onMapCommittee: () => void;
   mapping: boolean;
 }) {
   const committee = contacts.filter((c) => !c.isPrimary);
   const primary = contacts.find((c) => c.isPrimary);
+  const [selected, setSelected] = useState<string | undefined>();
+  const hasGraph = (graph?.stakeholders?.length ?? 0) > 0;
+
+  const moveFor = (c: any) =>
+    (moves?.moves ?? []).find(
+      (m: any) => m.name?.toLowerCase() === c.name?.toLowerCase()
+    );
 
   return (
     <Panel
@@ -38,7 +50,18 @@ export default function DealMap({
       }
     >
       <div className="flex-1 space-y-2 overflow-y-auto p-2.5">
-        {primary && <ContactCard contact={primary} drafts={drafts} highlight />}
+        {hasGraph && (
+          <div className="dot-grid mb-1 border border-border py-2">
+            <CommitteeGraph
+              graph={graph}
+              contacts={contacts}
+              selectedId={selected}
+              onSelect={(email) => setSelected((s) => (s === email ? undefined : email))}
+            />
+          </div>
+        )}
+
+        {primary && <ContactCard contact={primary} drafts={drafts} move={moveFor(primary)} highlight />}
 
         <AnimatePresence initial={false}>
           {committee.map((c) => (
@@ -49,7 +72,12 @@ export default function DealMap({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.175, 0.885, 0.32, 1.1] }}
             >
-              <ContactCard contact={c} drafts={drafts} />
+              <ContactCard
+                contact={c}
+                drafts={drafts}
+                move={moveFor(c)}
+                highlight={selected === c.email}
+              />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -74,10 +102,12 @@ export default function DealMap({
 function ContactCard({
   contact,
   drafts,
+  move,
   highlight,
 }: {
   contact: any;
   drafts: any[];
+  move?: any;
   highlight?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -148,6 +178,13 @@ function ContactCard({
           </button>
         )}
       </div>
+
+      {move?.action && (
+        <div className="mt-2 flex items-start gap-1.5 border-t border-border pt-2">
+          <span className="mono-label mt-0.5 shrink-0 text-accent-soft">→ next</span>
+          <p className="text-[12px] leading-snug text-secondary">{move.action}</p>
+        </div>
+      )}
 
       <AnimatePresence>
         {open && draft && (

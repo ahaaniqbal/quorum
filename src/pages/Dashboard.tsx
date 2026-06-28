@@ -5,6 +5,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import TopBar from "../components/TopBar";
 import Stepper from "../components/Stepper";
+import NextMoveBar from "../components/NextMoveBar";
 import ActivityFeed from "../components/ActivityFeed";
 import CallPanel from "../components/CallPanel";
 import DealMap from "../components/DealMap";
@@ -129,6 +130,7 @@ export default function Dashboard() {
         onToggleAutopilot={() => setAutopilot((a) => !a)}
         onRunNext={() => fire(nextAction)}
       />
+      <NextMoveBar moves={account!.moves} />
       <main className="grid-lines grid min-h-0 flex-1 grid-cols-[330px_1fr_368px] gap-3 overflow-hidden p-3">
         <ActivityFeed events={data.events} />
         <CallPanel
@@ -153,6 +155,8 @@ export default function Dashboard() {
         <DealMap
           contacts={contacts}
           drafts={drafts}
+          graph={account!.graph}
+          moves={account!.moves}
           onMapCommittee={() => fire("committee")}
           mapping={runningRef.current === "committee" && committeeCount === 0}
         />

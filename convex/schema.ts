@@ -25,6 +25,10 @@ export default defineSchema({
     brandColors: v.optional(v.array(v.string())),
     status: v.string(), // "new" | "active" | "committee_mapped" | "actioned"
     summary: v.optional(v.string()),
+    // ── Deal brain (the intelligence layer) ──
+    memory: v.optional(v.any()), // Memory Synthesis output (account_summary, deal_facts, person_updates…)
+    graph: v.optional(v.any()), // Committee Inference output (stakeholders, relationships, gaps)
+    moves: v.optional(v.any()), // Next-Move Engine output (deal_status, deal_risk, top_move, moves)
   })
     .index("by_domain", ["domain"])
     .index("by_user", ["userId"]),

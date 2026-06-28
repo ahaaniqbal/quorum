@@ -115,5 +115,7 @@ export const finishMapping = internalMutation({
       type: "committee_mapped",
       label: `Buying committee mapped — ${count} decision-makers identified`,
     });
+    // Build the committee graph + next moves from the people we just found.
+    await ctx.scheduler.runAfter(400, api.brain.runBrainChain, { accountId });
   },
 });

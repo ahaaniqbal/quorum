@@ -16,7 +16,11 @@ export const seedDemo = mutation({
       .collect();
     if (
       ramps.some(
-        (a) => a.userId === undefined && a.summary?.startsWith("Series D fintech")
+        (a) =>
+          a.userId === undefined &&
+          a.summary?.startsWith("Series D fintech") &&
+          a.graph?.stakeholders?.length &&
+          a.moves?.top_move
       )
     ) {
       return { seeded: false };
@@ -75,6 +79,44 @@ export const seedDemo = mutation({
         ],
         sources: ["Fiber", "Orange Slice"],
         source: "curated",
+      },
+      memory: {
+        account_summary:
+          "Ramp has a real speed-to-lead and multi-threading problem as they scale the sales team. Maya is an engaged champion; budget exists but needs CFO David Osei's sign-off. A follow-up is booked for Thursday.",
+        deal_facts: {
+          pain: ["Reps can't follow up on inbound fast enough", "Deals go single-threaded"],
+          budget: "Budget line exists for sales tooling this half",
+          timing: "Evaluating this quarter",
+          competitors_mentioned: [],
+          objections: ["Already use Salesforce and a sequencer"],
+          commitments: ["Booked a follow-up working session Thursday 2pm", "We agreed to send a security overview"],
+        },
+        what_changed: "Maya confirmed budget exists and named the CFO as the approver, then booked Thursday.",
+      },
+      graph: {
+        stakeholders: [
+          { id: "economic_buyer-david-osei", name: "David Osei", title: "Chief Financial Officer", email: "david.osei@ramp.com", role: "economic_buyer", seniority: "c_level", engagement: "contacted", influence: "high", confidence: 0.8, rationale: "Owns budget; Maya named him as the required approver." },
+          { id: "champion-maya-chen", name: "Maya Chen", title: "Director of Sales", email: "maya.chen@ramp.com", role: "champion", seniority: "director", engagement: "engaged", influence: "high", confidence: 0.9, rationale: "Inbound lead, feels the pain daily, selling internally." },
+          { id: "technical_approver-priya-nair", name: "Priya Nair", title: "Head of Revenue Operations", email: "priya.nair@ramp.com", role: "technical_approver", seniority: "director", engagement: "contacted", influence: "medium", confidence: 0.7, rationale: "Owns CRM and workflow; must clear integration fit." },
+          { id: "influencer-tomas-rivera", name: "Tomás Rivera", title: "VP of Engineering", email: "tomas.rivera@ramp.com", role: "influencer", seniority: "vp", engagement: "contacted", influence: "medium", confidence: 0.6, rationale: "Security and data review before procurement." },
+        ],
+        relationships: [
+          { from: "champion-maya-chen", to: "economic_buyer-david-osei", type: "champions_to", confidence: 0.8 },
+          { from: "technical_approver-priya-nair", to: "economic_buyer-david-osei", type: "reports_to", confidence: 0.6 },
+          { from: "influencer-tomas-rivera", to: "economic_buyer-david-osei", type: "influences", confidence: 0.5 },
+        ],
+        gaps: ["No security/IT stakeholder identified, likely required before procurement at Ramp's size."],
+      },
+      moves: {
+        deal_status: "advancing",
+        deal_risk: "David (economic buyer) hasn't engaged directly, and no security stakeholder is identified yet.",
+        top_move: { stakeholder_id: "economic_buyer-david-osei", name: "David Osei", action: "Send David the ROI model tied to the 40+ rep hiring plan before Thursday's session.", why: "He owns budget and hasn't engaged directly yet.", channel: "email", urgency: "today" },
+        moves: [
+          { stakeholder_id: "economic_buyer-david-osei", name: "David Osei", title: "Chief Financial Officer", action: "Send the ROI model tied to the 40+ rep hiring plan before Thursday.", why: "Owns budget, not yet engaged directly.", channel: "email", urgency: "today" },
+          { stakeholder_id: "champion-maya-chen", name: "Maya Chen", title: "Director of Sales", action: "Confirm Thursday and ask Maya to bring David and a security contact.", why: "Honor the booked session and widen the thread.", channel: "email", urgency: "now" },
+          { stakeholder_id: "technical_approver-priya-nair", name: "Priya Nair", title: "Head of Revenue Operations", action: "Send the Salesforce integration one-pager to pre-clear workflow fit.", why: "She owns CRM and must approve the integration.", channel: "email", urgency: "this_week" },
+          { stakeholder_id: "influencer-tomas-rivera", name: "Tomás Rivera", title: "VP of Engineering", action: "Proactively send the security overview to de-risk the eval.", why: "We committed to a security overview on the call.", channel: "email", urgency: "this_week" },
+        ],
       },
     });
 
