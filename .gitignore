@@ -2,14 +2,19 @@ node_modules
 dist
 dist-ssr
 *.local
-.env.local
-.env
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
-convex/_generated
 
 # Local secrets — never committed
 secrets.env
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+.vercel
+
+# Env files: ignore all, but keep the public build config + example tracked
+.env
+.env.local
+.env*.local
+!.env.production
+!.env.example
