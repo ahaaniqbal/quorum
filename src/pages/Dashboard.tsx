@@ -126,7 +126,7 @@ export default function Dashboard() {
         }}
       />
       <TopBar account={account} onRethread={onRethread} rethreading={rethreading} />
-      <main className="grid flex-1 grid-cols-[320px_1fr_360px] gap-3 overflow-hidden p-3">
+      <main className="grid-lines grid flex-1 grid-cols-[330px_1fr_368px] gap-3 overflow-hidden p-3">
         <ActivityFeed events={events} />
         <CallPanel
           conversation={latestConversation}
@@ -150,8 +150,8 @@ export default function Dashboard() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen items-center justify-center bg-bg">
-      <p className="text-sm text-secondary">{children}</p>
+    <div className="dot-grid flex h-screen items-center justify-center bg-bg">
+      <p className="mono-label normal-case tracking-normal text-secondary">{children}</p>
     </div>
   );
 }

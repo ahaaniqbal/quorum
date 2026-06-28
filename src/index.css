@@ -4,6 +4,12 @@
 
 :root {
   color-scheme: dark;
+  /* Quorum's fixed interactive accent (buttons, scores, links, focus) */
+  --accent: #5b47eb;
+  /* Per-company brand color — subtle touches only (top stripe, logo ring) */
+  --brand: #5b47eb;
+  --brand2: #0a0a0a;
+  --ease: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 }
 
 html,
@@ -14,9 +20,10 @@ body,
 
 body {
   margin: 0;
-  background: #0f0f0f;
-  color: #e8e8e8;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: #0a0a0a;
+  color: #ededed;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv01", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -27,35 +34,141 @@ h3 {
   letter-spacing: -0.02em;
 }
 
-/* Thin scrollbars to match the product feel */
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Thin technical scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #272727;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
+/* Focus rings on every interactive element (Vercel) */
+*:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #0a0a0a,
+    0 0 0 4px color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 6px;
+}
+
 @layer components {
-  .card {
-    @apply rounded-xl border border-border bg-surface;
+  .mono-label {
+    @apply font-mono text-[10px] uppercase tracking-[0.12em] text-tertiary;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-md border border-border bg-surface2 px-2 py-1 text-xs text-secondary;
+    @apply inline-flex items-center gap-1.5 rounded border border-border bg-surface2 px-2 py-1 font-mono text-[11px] text-secondary transition-colors duration-fast;
   }
   .pill {
-    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium;
   }
   .btn-primary {
-    @apply inline-flex h-9 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-soft disabled:opacity-50;
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded px-4 text-[13px] font-medium text-white transition-all duration-fast ease-vercel hover:brightness-110 active:brightness-95 disabled:opacity-50;
+    background: var(--accent);
+  }
+  .btn-secondary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded border border-border bg-surface px-4 text-[13px] font-medium text-text transition-all duration-fast ease-vercel hover:border-border-strong hover:bg-surface2 disabled:opacity-50;
   }
 }
 
-.bg-grid {
-  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
-  background-size: 28px 28px;
+@layer utilities {
+  /* Firecrawl-style faint modular line grid */
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .dot-grid {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+/* Blueprint cell: a bordered panel with plus-cross corner markers */
+.cell {
+  position: relative;
+  background: #0e0e0e;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+}
+/* plus-cross markers at the four corners (Firecrawl signature) */
+.cell::before,
+.cell::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.plus {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  color: rgba(255, 255, 255, 0.18);
+  z-index: 2;
+  pointer-events: none;
+}
+.plus::before,
+.plus::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+}
+.plus::before {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+.plus::after {
+  top: 50%;
+  left: 0;
+  height: 1px;
+  width: 100%;
+  transform: translateY(-50%);
+}
+.plus-tl {
+  top: -5px;
+  left: -5px;
+}
+.plus-tr {
+  top: -5px;
+  right: -5px;
+}
+.plus-bl {
+  bottom: -5px;
+  left: -5px;
+}
+.plus-br {
+  bottom: -5px;
+  right: -5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
