@@ -36,6 +36,34 @@ async function tryFiberCompany(domain: string): Promise<Partial<SeedCompany> | n
   }
 }
 
+// Best-effort brand extraction via Firecrawl: scrape the homepage and pull a
+// theme color + logo. Returns null on any failure. Never throws.
+async function tryFirecrawlBrand(
+  domain: string
+): Promise<{ color?: string; logoUrl?: string } | null> {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ url: `https://${domain}`, formats: ["html"] }),
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const html: string = j?.data?.html ?? "";
+    const meta = j?.data?.metadata ?? {};
+    const themeColor =
+      html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+      html.match(/<meta[^>]+content=["'](#[0-9a-fA-F]{6})["'][^>]+name=["']theme-color["']/i)?.[1];
+    const logoUrl = meta.ogImage ?? meta.favicon ?? undefined;
+    if (!themeColor && !logoUrl) return null;
+    return { color: themeColor, logoUrl };
+  } catch {
+    return null;
+  }
+}
+
 export const enrichFromEmail = action({
   args: { email: v.string() },
   handler: async (ctx, { email }): Promise<string> => {
@@ -45,6 +73,15 @@ export const enrichFromEmail = action({
     // Layer real Fiber data over the curated base when available.
     const fiber = await tryFiberCompany(domain);
     const company: SeedCompany = { ...base, ...(fiber ?? {}) };
+
+    // Brand theming: curated colors win; Firecrawl enhances unknown domains.
+    let brandColors = company.brandColors;
+    let logoUrl = logoForDomain(domain);
+    if (!KNOWN_COMPANIES[domain]) {
+      const brand = await tryFirecrawlBrand(domain);
+      if (brand?.color) brandColors = [brand.color, "#0F0F0F"];
+      if (brand?.logoUrl) logoUrl = brand.logoUrl;
+    }
 
     const enrichment = {
       industry: company.industry,
@@ -60,8 +97,8 @@ export const enrichFromEmail = action({
       domain,
       companyName: company.companyName,
       enrichment,
-      logoUrl: logoForDomain(domain),
-      brandColors: company.brandColors,
+      logoUrl,
+      brandColors,
       summary: company.summary,
     });
 

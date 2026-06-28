@@ -111,8 +111,20 @@ export default function Dashboard() {
     }
   };
 
+  const brand: string[] = account?.brandColors ?? ["#5B47EB", "#0F0F0F"];
+
   return (
-    <div className="flex h-screen flex-col bg-bg">
+    <div
+      className="flex h-screen flex-col bg-bg"
+      style={{ ["--brand" as any]: brand[0], ["--brand2" as any]: brand[1] ?? brand[0] }}
+    >
+      {/* Brand-themed top stripe — themed live to the prospect's company */}
+      <div
+        className="h-[3px] w-full"
+        style={{
+          background: `linear-gradient(90deg, ${brand[0]}, ${brand[1] ?? brand[0]}, ${brand[0]})`,
+        }}
+      />
       <TopBar account={account} onRethread={onRethread} rethreading={rethreading} />
       <main className="grid flex-1 grid-cols-[320px_1fr_360px] gap-3 overflow-hidden p-3">
         <ActivityFeed events={events} />

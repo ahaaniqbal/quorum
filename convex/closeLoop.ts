@@ -78,6 +78,11 @@ export const complete = internalAction({
       if (res?.id) externalId = res.id;
     }
 
+    if (type === "email" && process.env.AGENTMAIL_API_KEY) {
+      const sent = await trySendDraftsViaAgentMail(ctx, accountId).catch(() => 0);
+      if (sent > 0) externalId = `sent:${sent}`;
+    }
+
     await ctx.runMutation(internal.closeLoop.markDone, {
       accountId,
       type,
@@ -126,8 +131,43 @@ export const finish = internalMutation({
       type: "action_fired",
       label: "Loop closed — every action fired across the stack",
     });
+    // Sync the account brain to HydraDB (best-effort; no-op without a key).
+    await ctx.scheduler.runAfter(300, internal.hydra.ingest, { accountId });
   },
 });
+
+// Best-effort real email send via AgentMail: send each drafted committee email
+// from an agent inbox, mark the draft sent. Returns count sent. Never throws.
+async function trySendDraftsViaAgentMail(ctx: any, accountId: any): Promise<number> {
+  const key = process.env.AGENTMAIL_API_KEY;
+  if (!key) return 0;
+  const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+  if (!data) return 0;
+  const inbox = process.env.AGENTMAIL_INBOX ?? "quorum@agentmail.to";
+  let sent = 0;
+  for (const draft of data.drafts ?? []) {
+    if (draft.status === "sent") continue;
+    const contact = data.contacts.find((c: any) => c._id === draft.contactId);
+    if (!contact?.email) continue;
+    try {
+      const res = await fetch(`https://api.agentmail.to/v0/inboxes/${inbox}/messages/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({ to: contact.email, subject: draft.subject, text: draft.body }),
+      });
+      if (res.ok) {
+        await ctx.runMutation(api.mutations.setDraftStatus, {
+          draftId: draft._id,
+          status: "sent",
+        });
+        sent++;
+      }
+    } catch {
+      // skip this one
+    }
+  }
+  return sent;
+}
 
 // Best-effort real Slack message via Composio. Endpoint/tool shape is wrapped in
 // try/catch; on any failure the action still completes (simulated). Wire the

@@ -81,7 +81,10 @@ function Logo({ url, name }: { url?: string; name?: string }) {
     );
   }
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-sm font-bold text-accent">
+    <div
+      className="flex h-10 w-10 items-center justify-center rounded-lg border bg-surface text-sm font-bold"
+      style={{ borderColor: "var(--brand, #5B47EB)", color: "var(--brand, #5B47EB)" }}
+    >
       {name?.[0] ?? "?"}
     </div>
   );

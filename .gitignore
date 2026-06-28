@@ -8,3 +8,6 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 convex/_generated
+
+# Local secrets — never committed
+secrets.env
