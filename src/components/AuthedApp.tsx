@@ -9,7 +9,6 @@ import Dashboard from "../pages/Dashboard";
 import Integrations from "../pages/Integrations";
 import Settings from "../pages/Settings";
 import Onboarding from "../pages/Onboarding";
-import SignIn from "../pages/SignIn";
 
 export default function AuthedApp() {
   const me = useQuery(api.profiles.getMyProfile);
@@ -57,8 +56,6 @@ export default function AuthedApp() {
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Pipeline />} />
       </Route>
-      {/* Reachable from "Sign in to save" — upgrade a guest to a real account. */}
-      <Route path="/signin" element={<SignIn upgrade />} />
     </Routes>
   );
 }

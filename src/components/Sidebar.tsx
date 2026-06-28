@@ -1,5 +1,6 @@
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { STAGE_INDEX, STAGES } from "../lib/stages";
 import { Avatar } from "./Avatar";
@@ -18,6 +19,7 @@ export default function Sidebar() {
   const pipeline = useQuery(api.queries.listPipeline, {}) ?? [];
   const me = useQuery(api.profiles.getMyProfile);
   const reset = useMutation(api.admin.resetDemo);
+  const { signOut } = useAuthActions();
   const isGuest = (me?.user as any)?.isAnonymous;
 
   return (
@@ -88,7 +90,7 @@ export default function Sidebar() {
       <div className="border-t border-border p-3">
         {isGuest ? (
           <button
-            onClick={() => navigate("/signin")}
+            onClick={() => signOut()}
             className="mb-2.5 flex w-full items-center gap-2.5 border border-border px-2 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface"
           >
             <span
