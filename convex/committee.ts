@@ -1,7 +1,8 @@
-import { mutation, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { action, mutation, internalMutation } from "./_generated/server";
+import { internal, api } from "./_generated/api";
 import { v } from "convex/values";
 import { committeeForDomain } from "./lib/seed";
+import { fiberCommittee } from "./lib/fiber";
 
 const ROLE_LABEL: Record<string, string> = {
   champion: "Champion",
@@ -10,21 +11,26 @@ const ROLE_LABEL: Record<string, string> = {
   user: "End User",
 };
 
-// Maps the rest of the buying committee. Uses real, verified decision-makers
-// (getleads) for known demo domains; synthesizes a plausible committee otherwise.
-// Members pop in one-by-one via the scheduler for a live "finding the room" feel.
-export const mapCommittee = mutation({
+// Maps the rest of the buying committee. Uses real Fiber AI people-search
+// (c-suite + founders at the company domain); falls back to curated/verified
+// decision-makers if Fiber is unavailable. Members pop in one-by-one via the
+// scheduler for a live "finding the room" feel.
+export const mapCommittee = action({
   args: { accountId: v.id("accounts") },
-  handler: async (ctx, { accountId }) => {
-    const account = await ctx.db.get(accountId);
-    if (!account) throw new Error("Account not found");
+  handler: async (ctx, { accountId }): Promise<number> => {
+    const data: any = await ctx.runQuery(api.queries.getAccountFull, { accountId });
+    if (!data) throw new Error("Account not found");
+    const account = data.account;
 
-    const members = committeeForDomain(account.domain, account.companyName);
+    const fiber = await fiberCommittee(account.domain);
+    const usedFiber = Boolean(fiber && fiber.length);
+    const members = usedFiber
+      ? fiber!
+      : committeeForDomain(account.domain, account.companyName);
 
-    await ctx.db.insert("events", {
+    await ctx.runMutation(internal.committee.recordMapStart, {
       accountId,
-      type: "committee_mapped",
-      label: `Mapping the buying committee at ${account.companyName}…`,
+      label: `${usedFiber ? "Fiber people-search:" : "Mapping"} the buying committee at ${account.companyName}…`,
     });
 
     let t = 350;
@@ -46,6 +52,13 @@ export const mapCommittee = mutation({
     });
 
     return members.length;
+  },
+});
+
+export const recordMapStart = internalMutation({
+  args: { accountId: v.id("accounts"), label: v.string() },
+  handler: async (ctx, { accountId, label }) => {
+    await ctx.db.insert("events", { accountId, type: "committee_mapped", label });
   },
 });
 

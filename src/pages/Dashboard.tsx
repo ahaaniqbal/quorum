@@ -20,7 +20,7 @@ export default function Dashboard() {
   const startSimulatedCall = useMutation(api.voice.startSimulatedCall);
   const createVoiceConversation = useMutation(api.voice.createVoiceConversation);
   const appendRealLine = useMutation(api.voice.appendRealLine);
-  const mapCommittee = useMutation(api.committee.mapCommittee);
+  const mapCommittee = useAction(api.committee.mapCommittee);
   const generateOutreach = useAction(api.outreach.generateOutreach);
   const fireActions = useMutation(api.closeLoop.fireActions);
   const startRethread = useMutation(api.rethread.startRethread);

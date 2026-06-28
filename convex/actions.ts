@@ -11,30 +11,7 @@ import {
   nameFromEmail,
   type SeedCompany,
 } from "./lib/seed";
-
-// Best-effort real enrichment via Fiber. Returns null on any failure so the
-// curated/derived profile is used instead. Never throws.
-async function tryFiberCompany(domain: string): Promise<Partial<SeedCompany> | null> {
-  const key = process.env.FIBER_API_KEY;
-  if (!key) return null;
-  try {
-    const res = await fetch(`https://api.fiber.ai/v1/enrich/company?domain=${domain}`, {
-      headers: { Authorization: `Bearer ${key}` },
-    });
-    if (!res.ok) return null;
-    const data: any = await res.json();
-    return {
-      companyName: data.name ?? undefined,
-      industry: data.industry ?? undefined,
-      headcount: data.employeeRange ?? data.headcount ?? undefined,
-      funding: data.lastFunding ?? undefined,
-      techStack: data.techStack ?? undefined,
-      signals: data.signals ?? undefined,
-    };
-  } catch {
-    return null;
-  }
-}
+import { fiberEmailToPerson, fiberCompany } from "./lib/fiber";
 
 // Best-effort brand extraction via Firecrawl: scrape the homepage and pull a
 // theme color + logo. Returns null on any failure. Never throws.
@@ -68,21 +45,42 @@ export const enrichFromEmail = action({
   args: { email: v.string() },
   handler: async (ctx, { email }): Promise<string> => {
     const domain = parseDomain(email);
+    const isKnown = Boolean(KNOWN_COMPANIES[domain]);
     const base = KNOWN_COMPANIES[domain] ?? fallbackCompany(domain);
 
-    // Layer real Fiber data over the curated base when available.
-    const fiber = await tryFiberCompany(domain);
-    const company: SeedCompany = { ...base, ...(fiber ?? {}) };
+    // Real Fiber AI: reverse-lookup the person + enrich the company, in parallel.
+    const [person, fiber] = await Promise.all([
+      fiberEmailToPerson(email),
+      fiberCompany(domain),
+    ]);
 
-    // Brand theming: curated colors win; Firecrawl enhances unknown domains.
+    // Layer real Fiber company data over the curated/derived base.
+    const company: SeedCompany = {
+      ...base,
+      ...(fiber
+        ? {
+            companyName: fiber.companyName ?? base.companyName,
+            industry: fiber.industry ?? base.industry,
+            headcount: fiber.headcount ?? base.headcount,
+            funding: fiber.funding ?? base.funding,
+            revenue: fiber.revenue ?? base.revenue,
+            techStack: fiber.techStack?.length ? fiber.techStack : base.techStack,
+            signals: fiber.signals?.length ? fiber.signals : base.signals,
+            summary: fiber.summary ?? base.summary,
+          }
+        : {}),
+    };
+
+    // Brand theming: curated colors win; Firecrawl/Fiber enhance unknown domains.
     let brandColors = company.brandColors;
-    let logoUrl = logoForDomain(domain);
-    if (!KNOWN_COMPANIES[domain]) {
+    let logoUrl = fiber?.logoUrl ?? logoForDomain(domain);
+    if (!isKnown) {
       const brand = await tryFirecrawlBrand(domain);
       if (brand?.color) brandColors = [brand.color, "#0F0F0F"];
       if (brand?.logoUrl) logoUrl = brand.logoUrl;
     }
 
+    const source = fiber ? "fiber" : isKnown ? "curated" : "derived";
     const enrichment = {
       industry: company.industry,
       headcount: company.headcount,
@@ -90,7 +88,7 @@ export const enrichFromEmail = action({
       revenue: company.revenue,
       techStack: company.techStack,
       signals: company.signals,
-      source: fiber ? "fiber" : KNOWN_COMPANIES[domain] ? "curated" : "derived",
+      source,
     };
 
     const accountId: string = await ctx.runMutation(api.mutations.createAccount, {
@@ -105,26 +103,30 @@ export const enrichFromEmail = action({
     await ctx.runMutation(api.mutations.recordEvent, {
       accountId: accountId as any,
       type: "enriched",
-      label: `Enriched ${company.companyName} — ${company.funding}, ${company.headcount} employees`,
+      label: `${fiber ? "Fiber enriched" : "Enriched"} ${company.companyName} — ${company.funding}, ${company.headcount} employees`,
       payload: enrichment,
     });
 
-    // Primary contact (the prospect who dropped their email).
-    const primaryName = nameFromEmail(email);
+    // Primary contact — real identity via Fiber email-to-person when available.
+    const primaryName = person?.name ?? nameFromEmail(email);
+    const primaryTitle = person?.title || "Head of Revenue";
     const contactId = await ctx.runMutation(api.mutations.addContact, {
       accountId: accountId as any,
       name: primaryName,
-      title: "Head of Revenue",
+      title: primaryTitle,
       email,
       role: "champion",
       persona: "Pragmatic, ROI-driven, wants speed-to-value.",
+      enrichment: person ? { linkedin: person.linkedin, headline: person.headline } : undefined,
       isPrimary: true,
     });
 
     await ctx.runMutation(api.mutations.recordEvent, {
       accountId: accountId as any,
       type: "enriched",
-      label: `Identified ${primaryName} as primary contact at ${company.companyName}`,
+      label: person
+        ? `Fiber reverse-lookup: ${email} → ${primaryName}, ${primaryTitle}`
+        : `Identified ${primaryName} as primary contact at ${company.companyName}`,
       payload: { contactId },
     });
 
