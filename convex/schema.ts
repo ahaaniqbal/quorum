@@ -124,8 +124,15 @@ export default defineSchema({
     subject: v.string(),
     body: v.string(),
     persona: v.string(),
-    status: v.string(), // "draft" | "sent"
+    status: v.string(), // "draft" | "approved" | "skipped" | "sent"
     confidence: v.optional(v.number()),
     rationale: v.optional(v.any()),
   }).index("by_account", ["accountId"]),
+
+  // Fixed-window rate limiter (inbound-webhook abuse protection, etc.).
+  rateLimits: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_key", ["key"]),
 });

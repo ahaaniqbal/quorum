@@ -35,6 +35,15 @@ const inbound = httpAction(async (ctx, req) => {
   const userId = await ctx.runQuery(internal.inbound.resolveToken, { token });
   if (!userId) return json({ ok: false, error: "invalid token" }, 401);
 
+  // Cap each workspace to 30 leads/min so a leaked token can't spam costly
+  // enrichment + AI work.
+  const rl = await ctx.runMutation(internal.inbound.consumeRateLimit, {
+    key: `inbound:${userId}`,
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (!rl.ok) return json({ ok: false, error: "rate limited", retryAfterMs: rl.retryAfterMs }, 429);
+
   await ctx.scheduler.runAfter(0, internal.inbound.workLead, { userId, email });
   return json({ ok: true, queued: 1, email });
 });

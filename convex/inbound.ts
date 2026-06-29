@@ -101,6 +101,22 @@ export const bulkIngest = mutation({
   handler: async (ctx, { emails }): Promise<{ queued: number }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    // Per-workspace rate limit (inline — a mutation can't call another mutation):
+    // at most 10 batch ingests per minute.
+    const now = Date.now();
+    const rlKey = `bulk:${userId}`;
+    const rlRow = await ctx.db
+      .query("rateLimits")
+      .withIndex("by_key", (q) => q.eq("key", rlKey))
+      .first();
+    if (!rlRow || now - rlRow.windowStart >= 60_000) {
+      if (rlRow) await ctx.db.patch(rlRow._id, { windowStart: now, count: 1 });
+      else await ctx.db.insert("rateLimits", { key: rlKey, windowStart: now, count: 1 });
+    } else if (rlRow.count >= 10) {
+      throw new Error("Too many ingests in a short window — give it a moment and retry.");
+    } else {
+      await ctx.db.patch(rlRow._id, { count: rlRow.count + 1 });
+    }
     const seen = new Set<string>();
     const clean = emails
       .map((e) => e.trim().toLowerCase())
@@ -179,5 +195,29 @@ export const resolveToken = internalQuery({
       .withIndex("by_ingestToken", (q) => q.eq("ingestToken", token))
       .first();
     return p?.userId ?? null;
+  },
+});
+
+// Fixed-window rate limit: returns ok:false (with a retry hint) once `key`
+// exceeds `limit` requests inside the current `windowMs` window. Used to cap the
+// inbound webhook so a leaked token can't spam costly lead-work.
+export const consumeRateLimit = internalMutation({
+  args: { key: v.string(), limit: v.number(), windowMs: v.number() },
+  handler: async (ctx, { key, limit, windowMs }) => {
+    const now = Date.now();
+    const row = await ctx.db
+      .query("rateLimits")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+    if (!row || now - row.windowStart >= windowMs) {
+      if (row) await ctx.db.patch(row._id, { windowStart: now, count: 1 });
+      else await ctx.db.insert("rateLimits", { key, windowStart: now, count: 1 });
+      return { ok: true as const };
+    }
+    if (row.count >= limit) {
+      return { ok: false as const, retryAfterMs: row.windowStart + windowMs - now };
+    }
+    await ctx.db.patch(row._id, { count: row.count + 1 });
+    return { ok: true as const };
   },
 });
