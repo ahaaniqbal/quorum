@@ -184,10 +184,15 @@ export const listReviewQueue = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    const allAccounts = await ctx.db.query("accounts").collect();
-    const accounts = allAccounts.filter(
-      (account) => account.userId === undefined || account.userId === userId
-    );
+    // The review gate is the signed-in user's OWN pending decisions. Demo/sample
+    // accounts are read-only showcases (visible in the pipeline, not actionable
+    // here), so they never appear as approvable items in someone's queue.
+    const accounts = userId
+      ? await ctx.db
+          .query("accounts")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect()
+      : [];
 
     const draftRows: any[] = [];
     const actionRows: any[] = [];

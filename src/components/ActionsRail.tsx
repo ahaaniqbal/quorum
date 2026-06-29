@@ -21,7 +21,7 @@ export default function ActionsRail({
   firing,
 }: {
   actions: any[];
-  onFire: () => void;
+  onFire?: () => void;
   firing: boolean;
 }) {
   const byType: Record<string, any> = {};
@@ -88,9 +88,11 @@ export default function ActionsRail({
         </Link>
       )}
 
-      <button onClick={onFire} disabled={firing} className="btn-primary w-full shrink-0 md:w-auto">
-        {firing ? "Firing…" : "Close the loop"}
-      </button>
+      {onFire && (
+        <button onClick={onFire} disabled={firing} className="btn-primary w-full shrink-0 md:w-auto">
+          {firing ? "Firing…" : "Close the loop"}
+        </button>
+      )}
     </div>
   );
 }

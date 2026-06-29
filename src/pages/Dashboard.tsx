@@ -63,6 +63,10 @@ export default function Dashboard() {
   }, [accountId]);
 
   const account = data?.account;
+  // Demo/sample accounts (no userId) are read-only: fully viewable, but the
+  // autopilot and write actions are disabled so a visitor can't mutate the
+  // shared showcase. A signed-in/guest user's own worked accounts are writable.
+  const readOnly = !!account && !account.userId;
   const contacts = data?.contacts ?? [];
   const primary = contacts.find((c: any) => c.isPrimary) ?? contacts[0];
   const committeeCount = contacts.filter((c: any) => !c.isPrimary).length;
@@ -85,7 +89,7 @@ export default function Dashboard() {
   const { reached, callLive, done } = deriveProgress(data ?? null);
 
   async function fire(action: Action | null) {
-    if (!action || !account || runningRef.current === action) return;
+    if (!action || !account || readOnly || runningRef.current === action) return;
     runningRef.current = action;
     try {
       if (action === "call" && primary)
@@ -103,7 +107,7 @@ export default function Dashboard() {
   // in-browser voice call (mic → assistant); otherwise it falls back to the
   // OpenAI text-driven rep. Either way the transcript and scorecard stream live.
   async function startTheCall() {
-    if (!primary || !account || runningRef.current === "call") return;
+    if (!primary || !account || readOnly || runningRef.current === "call") return;
     runningRef.current = "call";
     try {
       if (hasVapiKey()) {
@@ -134,14 +138,14 @@ export default function Dashboard() {
     }
   }
 
-  // Autopilot: auto-advance the pipeline when enabled.
+  // Autopilot: auto-advance the pipeline when enabled (never on a read-only sample).
   useEffect(() => {
-    if (!autopilot || !nextAction) return;
+    if (!autopilot || !nextAction || readOnly) return;
     if (runningRef.current === nextAction) return;
     const t = setTimeout(() => fire(nextAction), 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autopilot, nextAction, account?._id, primary?._id]);
+  }, [autopilot, nextAction, account?._id, primary?._id, readOnly]);
 
   if (!accountId) return <Centered>Missing account.</Centered>;
   if (data === undefined) return <Centered>Loading account brain…</Centered>;
@@ -172,6 +176,7 @@ export default function Dashboard() {
   const score = intelligence?.score ?? 0;
 
   const onRethread = async () => {
+    if (readOnly) return;
     setRethreading(true);
     try {
       await startRethread({ accountId: account!._id });
@@ -185,9 +190,21 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="h-[2px] w-full" style={{ background: "var(--brand)" }} />
-      <TopBar account={account} onRethread={onRethread} rethreading={rethreading} />
+      <TopBar account={account} onRethread={readOnly ? undefined : onRethread} rethreading={rethreading} />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[1480px] space-y-4 px-3 py-3 sm:px-4 sm:py-4">
+          {readOnly && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border border-warn/30 bg-warn/[0.06] px-4 py-3">
+              <p className="text-[13px] text-secondary">
+                <span className="mono-label mr-2 text-warn">Sample account · read-only</span>
+                This is a shared demo account, so actions are disabled. Work your own
+                company to run the full autonomous loop.
+              </p>
+              <Link to="/pipeline" className="btn-secondary h-8 shrink-0 px-3 text-[12px]">
+                Work your own company →
+              </Link>
+            </div>
+          )}
           {/* ZONE A — State: what happened, at a glance */}
           <Masthead
             account={account}
@@ -210,6 +227,7 @@ export default function Dashboard() {
             nextAction={nextAction}
             nextLabel={nextLabel}
             pendingReview={pendingReview}
+            readOnly={readOnly}
             onRunNext={() => fire(nextAction)}
             onToggleAutopilot={() => setAutopilot((c) => !c)}
           />
@@ -230,7 +248,7 @@ export default function Dashboard() {
             drafts={drafts}
             graph={account!.graph}
             moves={account!.moves}
-            onMapCommittee={() => fire("committee")}
+            onMapCommittee={readOnly ? undefined : () => fire("committee")}
             mapping={runningRef.current === "committee" && committeeCount === 0}
           />
 
@@ -245,7 +263,7 @@ export default function Dashboard() {
             callState={callState}
             sending={sending}
             voiceMode={voiceMode}
-            onStartCall={startTheCall}
+            onStartCall={readOnly ? undefined : startTheCall}
             onSend={async (text: string) => {
               if (!convo) return;
               setSending(true);
@@ -262,11 +280,15 @@ export default function Dashboard() {
 
           <ActionsRail
             actions={actions}
-            onFire={async () => {
-              await fire("outreach");
-              runningRef.current = null;
-              await fire("actions");
-            }}
+            onFire={
+              readOnly
+                ? undefined
+                : async () => {
+                    await fire("outreach");
+                    runningRef.current = null;
+                    await fire("actions");
+                  }
+            }
             firing={runningRef.current === "actions" && !actioned}
           />
         </div>
@@ -443,6 +465,7 @@ function DecisionHero({
   nextAction,
   nextLabel,
   pendingReview,
+  readOnly,
   onRunNext,
   onToggleAutopilot,
 }: {
@@ -454,6 +477,7 @@ function DecisionHero({
   nextAction: Action | null;
   nextLabel: string | null;
   pendingReview: number;
+  readOnly?: boolean;
   onRunNext: () => void;
   onToggleAutopilot: () => void;
 }) {
@@ -514,21 +538,30 @@ function DecisionHero({
           <p className="mt-2 text-[12.5px] leading-relaxed text-secondary">{decision.body}</p>
 
           <div className="mt-5 space-y-2">
-            {decision.primary?.to ? (
-              <Link to={decision.primary.to} className="btn-primary h-10 w-full px-4">
-                {decision.primary.label}
+            {readOnly ? (
+              <Link to="/pipeline" className="btn-primary h-10 w-full px-4">
+                Work your own company
                 <ArrowRight size={15} strokeWidth={2.2} />
               </Link>
-            ) : nextAction && !callLive ? (
-              <button onClick={onRunNext} className="btn-primary h-10 w-full px-4">
-                Run {nextLabel}
-                <ArrowRight size={15} strokeWidth={2.2} />
-              </button>
-            ) : null}
-            <button onClick={onToggleAutopilot} className="btn-secondary h-10 w-full px-4">
-              {autopilot ? <Pause size={14} strokeWidth={2.2} /> : <Play size={14} strokeWidth={2.2} />}
-              {autopilot ? "Pause autopilot" : "Resume autopilot"}
-            </button>
+            ) : (
+              <>
+                {decision.primary?.to ? (
+                  <Link to={decision.primary.to} className="btn-primary h-10 w-full px-4">
+                    {decision.primary.label}
+                    <ArrowRight size={15} strokeWidth={2.2} />
+                  </Link>
+                ) : nextAction && !callLive ? (
+                  <button onClick={onRunNext} className="btn-primary h-10 w-full px-4">
+                    Run {nextLabel}
+                    <ArrowRight size={15} strokeWidth={2.2} />
+                  </button>
+                ) : null}
+                <button onClick={onToggleAutopilot} className="btn-secondary h-10 w-full px-4">
+                  {autopilot ? <Pause size={14} strokeWidth={2.2} /> : <Play size={14} strokeWidth={2.2} />}
+                  {autopilot ? "Pause autopilot" : "Resume autopilot"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

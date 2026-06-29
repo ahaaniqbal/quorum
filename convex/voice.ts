@@ -9,6 +9,10 @@ import { openaiChat, type ChatMessage } from "./lib/openai";
 function accountVisible(account: any, userId: string | null): boolean {
   return !account?.userId || account.userId === userId;
 }
+// Owner-only write gate: demo/sample accounts (no userId) are read-only.
+function accountOwned(account: any, userId: string | null): boolean {
+  return Boolean(account?.userId) && account.userId === userId;
+}
 import { voiceRepPrompt } from "./lib/prompts";
 
 // Build the rep's system prompt: personalized to the seller, primed to discover
@@ -359,7 +363,8 @@ export const createVoiceConversation = mutation({
     if (!contact) throw new Error("Contact not found");
     const account = await ctx.db.get(contact.accountId);
     if (!account) throw new Error("Account not found");
-    if (!accountVisible(account, await getAuthUserId(ctx))) throw new Error("Not authorized");
+    if (!accountOwned(account, await getAuthUserId(ctx)))
+      throw new Error(account?.userId ? "Not authorized" : "Sample accounts are read-only");
     const conversationId = await ctx.db.insert("conversations", {
       accountId: account._id,
       contactId,
@@ -409,7 +414,8 @@ export const appendRealLine = mutation({
     const convo = await ctx.db.get(conversationId);
     if (!convo) return;
     const account = await ctx.db.get(convo.accountId);
-    if (!accountVisible(account, await getAuthUserId(ctx))) throw new Error("Not authorized");
+    if (!accountOwned(account, await getAuthUserId(ctx)))
+      throw new Error(account?.userId ? "Not authorized" : "Sample accounts are read-only");
     await ctx.db.insert("transcriptLines", { conversationId, role, text, ts: Date.now() });
   },
 });

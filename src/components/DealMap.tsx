@@ -25,7 +25,7 @@ export default function DealMap({
   drafts: any[];
   graph?: any;
   moves?: any;
-  onMapCommittee: () => void;
+  onMapCommittee?: () => void;
   mapping: boolean;
 }) {
   const committee = contacts.filter((c) => !c.isPrimary);
@@ -97,7 +97,7 @@ export default function DealMap({
               <p className="max-w-[220px] text-[13px] leading-relaxed text-secondary">
                 {mapping ? copy.loading.mapping : copy.empty.dealMap}
               </p>
-              {!mapping && (
+              {!mapping && onMapCommittee && (
                 <button onClick={onMapCommittee} className="btn-secondary h-9 text-[12px]">
                   Map committee now
                 </button>

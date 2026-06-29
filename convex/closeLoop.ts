@@ -7,7 +7,9 @@ async function requireAccountAccess(ctx: any, accountId: any) {
   const account = await ctx.db.get(accountId);
   if (!account) throw new Error("Account not found");
   const userId = await getAuthUserId(ctx);
-  if (account.userId && account.userId !== userId) throw new Error("Not authorized");
+  // Owner-only: demo/sample accounts (no userId) are read-only.
+  if (!account.userId || account.userId !== userId)
+    throw new Error(account.userId ? "Not authorized" : "Sample accounts are read-only");
   return account;
 }
 

@@ -181,7 +181,8 @@ export const updateDraft = mutation({
     const account = await ctx.db.get(draft.accountId);
     if (!account) throw new Error("Account not found");
     const userId = await getAuthUserId(ctx);
-    if (account.userId && account.userId !== userId) throw new Error("Not authorized");
+    if (!account.userId || account.userId !== userId)
+      throw new Error(account.userId ? "Not authorized" : "Sample accounts are read-only");
 
     await ctx.db.patch(draftId, { subject, body });
     await ctx.db.insert("events", {
@@ -200,7 +201,8 @@ export const reviewDraft = mutation({
     const account = await ctx.db.get(draft.accountId);
     if (!account) throw new Error("Account not found");
     const userId = await getAuthUserId(ctx);
-    if (account.userId && account.userId !== userId) throw new Error("Not authorized");
+    if (!account.userId || account.userId !== userId)
+      throw new Error(account.userId ? "Not authorized" : "Sample accounts are read-only");
     const contact = await ctx.db.get(draft.contactId);
 
     await ctx.db.patch(draftId, { status });

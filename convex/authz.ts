@@ -9,8 +9,11 @@ export const assertAccountAccess = internalQuery({
     if (!account) throw new Error("Account not found");
 
     const userId = await getAuthUserId(ctx);
-    if (account.userId && account.userId !== userId) {
-      throw new Error("Not authorized");
+    // Owner-only write gate: demo/sample accounts (no userId) are read-only; an
+    // owned account is mutable only by its owner. Reads use accountVisible, so
+    // everyone can still view the public demo accounts.
+    if (!account.userId || account.userId !== userId) {
+      throw new Error(account.userId ? "Not authorized" : "Sample accounts are read-only");
     }
 
     return { userId, account };
